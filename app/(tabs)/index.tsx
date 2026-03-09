@@ -66,9 +66,10 @@ function mapApiTx(t: ApiTransaction): Transaction {
 type SearchMode = "exact" | "semantic";
 
 function MerchantAvatar({ name, color }: { name: string; color: string }) {
+  const initial = (name[0] || "").toUpperCase();
   return (
     <View style={[styles.avatar, { backgroundColor: color }]}>
-      <Text style={styles.avatarText}>{name[0]?.toUpperCase() ?? "?"}</Text>
+      <Text style={styles.avatarText}>{initial || "$"}</Text>
     </View>
   );
 }
@@ -130,10 +131,26 @@ export default function HomeScreen() {
 
   const recentTransactions = transactions.slice(0, 50);
 
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const runSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setHasSearched(false);
+      setSemanticResults(null);
+      return;
+    }
+    setHasSearched(true);
+    if (searchMode === "semantic") {
+      runSemanticSearch();
+    }
+  };
+
   const displayTransactions = useMemo(() => {
-    if (searchMode === "semantic" && semanticResults !== null) return semanticResults;
+    if (!searchQuery.trim() || !hasSearched) return recentTransactions;
+    if (searchMode === "semantic") return semanticResults ?? [];
     return filterExact(recentTransactions, searchQuery);
-  }, [searchMode, semanticResults, recentTransactions, searchQuery]);
+  }, [searchMode, semanticResults, recentTransactions, searchQuery, hasSearched]);
 
   const runSemanticSearch = async () => {
     const q = searchQuery.trim();
@@ -224,7 +241,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>
-              Good {new Date().getHours() < 12 ? "morning" : "afternoon"} ☀️
+              Good {new Date().getHours() < 12 ? "morning" : "afternoon"}
             </Text>
             <Text style={styles.subGreeting}>
               {new Date().toLocaleString("en", { month: "long", year: "numeric" })}
@@ -281,16 +298,23 @@ export default function HomeScreen() {
               value={searchQuery}
               onChangeText={(t) => {
                 setSearchQuery(t);
-                if (searchMode === "exact") setSemanticResults(null);
+                setHasSearched(false);
+                setSemanticResults(null);
               }}
-              onSubmitEditing={() => searchMode === "semantic" && runSemanticSearch()}
+              onSubmitEditing={runSearch}
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <TouchableOpacity onPress={() => { setSearchQuery(""); setHasSearched(false); setSemanticResults(null); }}>
                 <Ionicons name="close-circle" size={18} color="#9CA3AF" />
               </TouchableOpacity>
             )}
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={runSearch}
+            >
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.searchModeRow}>
             <TouchableOpacity
@@ -303,19 +327,16 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modeChip, searchMode === "semantic" && styles.modeChipActive]}
-              onPress={() => {
-                setSearchMode("semantic");
-                runSemanticSearch();
-              }}
+              onPress={() => setSearchMode("semantic")}
             >
               <Text style={[styles.modeChipText, searchMode === "semantic" && styles.modeChipTextActive]}>
                 Natural language
               </Text>
             </TouchableOpacity>
           </View>
-          {searchMode === "semantic" && searchQuery.trim() && (
+          {searchMode === "semantic" && (
             <Text style={styles.searchHint}>
-              Try: &quot;coffee last week&quot;, &quot;dinner with Alex&quot;
+              Try: &quot;coffee last week&quot;, &quot;dinner with Alex&quot; — then tap Search
             </Text>
           )}
         </View>
@@ -323,9 +344,9 @@ export default function HomeScreen() {
         {/* Recent transactions */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {searchQuery ? "Results" : "Recent"}
+            {hasSearched && searchQuery.trim() ? "Results" : "Recent"}
           </Text>
-          {!searchQuery && (
+          {(!hasSearched || !searchQuery.trim()) && (
             <Text style={styles.sectionMeta}>{transactions.length} transactions</Text>
           )}
         </View>
@@ -413,6 +434,13 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   searchInput: { flex: 1, fontSize: 15, color: "#1F2937", padding: 0 },
+  searchButton: {
+    backgroundColor: "#3D8E62",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  searchButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   searchModeRow: { flexDirection: "row", gap: 8, marginTop: 10 },
   modeChip: {
     paddingHorizontal: 12,
