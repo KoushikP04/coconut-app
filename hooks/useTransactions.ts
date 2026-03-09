@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AppState } from "react-native";
 import { useApiFetch } from "../lib/api";
 
@@ -21,10 +21,12 @@ export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [linked, setLinked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const hasShownInitialLoad = useRef(false);
 
-  const fetchData = useCallback(() => {
+  const fetchData = useCallback((silent = false) => {
     let cancelled = false;
-    setLoading(true);
+    const isFirstLoad = !hasShownInitialLoad.current;
+    if (!silent && isFirstLoad) setLoading(true);
     apiFetch("/api/plaid/status")
       .then((r) => r.json())
       .then((data) => {
@@ -47,7 +49,10 @@ export function useTransactions() {
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          hasShownInitialLoad.current = true;
+          setLoading(false);
+        }
       });
     return () => { cancelled = true; };
   }, [apiFetch]);
@@ -57,9 +62,10 @@ export function useTransactions() {
   }, [fetchData]);
 
   // Refetch when app returns from background (e.g. after connect flow in browser)
+  // Use silent=true to avoid flickering — don't show loading spinner on refetch
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") fetchData();
+      if (state === "active") fetchData(true);
     });
     return () => sub.remove();
   }, [fetchData]);
