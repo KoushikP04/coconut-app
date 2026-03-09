@@ -109,7 +109,7 @@ function filterExact(transactions: Transaction[], q: string): Transaction[] {
 
 export default function HomeScreen() {
   const apiFetch = useApiFetch();
-  const { transactions, linked, loading } = useTransactions();
+  const { transactions, linked, loading, refetch } = useTransactions();
   const { subscriptions } = useSubscriptions();
   const { summary: groupsSummary } = useGroupsSummary();
 
@@ -184,6 +184,13 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.connectButton} onPress={openConnect}>
             <Text style={styles.connectButtonText}>Connect in web app</Text>
             <Ionicons name="open-outline" size={16} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.connectRefreshButton}
+            onPress={() => refetch(true)}
+          >
+            <Ionicons name="refresh" size={16} color="#3D8E62" />
+            <Text style={styles.connectRefreshText}>Just connected? Tap to refresh</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -480,6 +487,14 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   connectButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  connectRefreshButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 10,
+  },
+  connectRefreshText: { color: "#3D8E62", fontSize: 14, fontWeight: "500" },
   fab: {
     position: "absolute",
     bottom: 100,
