@@ -3,6 +3,21 @@ import { useAuth } from "@clerk/expo";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
 
+/** Clerk has a race: getToken() can return null right after isSignedIn. Retry a few times. */
+async function getTokenWithRetry(
+  getToken: (opts?: { skipCache?: boolean }) => Promise<string | null>,
+  maxAttempts = 4
+): Promise<string | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const token = await getToken({ skipCache: i > 0 });
+    if (token) return token;
+    if (i < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+    }
+  }
+  return null;
+}
+
 export function useApiFetch() {
   const { getToken } = useAuth();
 
@@ -11,11 +26,13 @@ export function useApiFetch() {
       path: string,
       opts: Omit<RequestInit, "body"> & { body?: object | FormData } = {}
     ) => {
-      const token = await getToken();
+      const token = await getTokenWithRetry(getToken);
       const headers: Record<string, string> = {
         ...(opts.headers as Record<string, string>),
       };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       if (
         opts.body &&
         typeof opts.body === "object" &&

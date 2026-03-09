@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,12 @@ import {
   ActivityIndicator,
   Linking,
   Pressable,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useApiFetch } from "../../lib/api";
 import { useTransactions, type Transaction } from "../../hooks/useTransactions";
 import { useSubscriptions } from "../../hooks/useSubscriptions";
@@ -119,6 +121,11 @@ export default function HomeScreen() {
   const [semanticResults, setSemanticResults] = useState<Transaction[] | null>(null);
   const [semanticSearching, setSemanticSearching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showFabMenu, setShowFabMenu] = useState(false);
+  const isFocused = useIsFocused();
+  useEffect(() => {
+    if (!isFocused) setShowFabMenu(false);
+  }, [isFocused]);
 
   const monthlySpend = useMemo(() => deriveMonthlySpend(transactions), [transactions]);
   const subsTotal = useMemo(
@@ -131,34 +138,28 @@ export default function HomeScreen() {
 
   const recentTransactions = transactions.slice(0, 50);
 
-  const [hasSearched, setHasSearched] = useState(false);
-
-  const runSearch = () => {
-    const q = searchQuery.trim();
-    if (!q) {
-      setHasSearched(false);
-      setSemanticResults(null);
-      return;
-    }
-    setHasSearched(true);
-    if (searchMode === "semantic") {
-      runSemanticSearch();
-    }
-  };
+  const [hasSearchedSemantic, setHasSearchedSemantic] = useState(false);
+  const [semanticAnswer, setSemanticAnswer] = useState<string>("");
 
   const displayTransactions = useMemo(() => {
-    if (!searchQuery.trim() || !hasSearched) return recentTransactions;
-    if (searchMode === "semantic") return semanticResults ?? [];
-    return filterExact(recentTransactions, searchQuery);
-  }, [searchMode, semanticResults, recentTransactions, searchQuery, hasSearched]);
+    if (searchMode === "exact") {
+      return filterExact(recentTransactions, searchQuery);
+    }
+    if (hasSearchedSemantic && semanticResults !== null) return semanticResults;
+    return recentTransactions;
+  }, [searchMode, semanticResults, recentTransactions, searchQuery, hasSearchedSemantic]);
 
   const runSemanticSearch = async () => {
     const q = searchQuery.trim();
     if (!q) {
       setSemanticResults(null);
+      setHasSearchedSemantic(false);
+      setSemanticAnswer("");
       return;
     }
     setSemanticSearching(true);
+    setHasSearchedSemantic(true);
+    setSemanticAnswer("");
     try {
       const res = await apiFetch("/api/nl-search", {
         method: "POST",
@@ -168,8 +169,10 @@ export default function HomeScreen() {
       const raw = data.transactions ?? [];
       const txs = Array.isArray(raw) ? raw.map(mapApiTx) : [];
       setSemanticResults(txs);
+      setSemanticAnswer(data.answer ?? "");
     } catch {
       setSemanticResults([]);
+      setSemanticAnswer("Search failed.");
     } finally {
       setSemanticSearching(false);
     }
@@ -298,28 +301,42 @@ export default function HomeScreen() {
               value={searchQuery}
               onChangeText={(t) => {
                 setSearchQuery(t);
-                setHasSearched(false);
-                setSemanticResults(null);
+                if (searchMode === "exact") setSemanticResults(null);
+                else { setHasSearchedSemantic(false); setSemanticAnswer(""); }
               }}
-              onSubmitEditing={runSearch}
-              returnKeyType="search"
+              onSubmitEditing={() => searchMode === "semantic" && runSemanticSearch()}
+              returnKeyType={searchMode === "semantic" ? "search" : "default"}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => { setSearchQuery(""); setHasSearched(false); setSemanticResults(null); }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery("");
+                  setSemanticResults(null);
+                  setHasSearchedSemantic(false);
+                  setSemanticAnswer("");
+                }}
+              >
                 <Ionicons name="close-circle" size={18} color="#9CA3AF" />
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={runSearch}
-            >
-              <Text style={styles.searchButtonText}>Search</Text>
-            </TouchableOpacity>
+            {searchMode === "semantic" && (
+              <TouchableOpacity
+                style={styles.searchIconBtn}
+                onPress={runSemanticSearch}
+                disabled={semanticSearching || !searchQuery.trim()}
+              >
+                {semanticSearching ? (
+                  <ActivityIndicator size="small" color="#3D8E62" />
+                ) : (
+                  <Ionicons name="search" size={20} color="#3D8E62" />
+                )}
+              </TouchableOpacity>
+            )}
           </View>
           <View style={styles.searchModeRow}>
             <TouchableOpacity
               style={[styles.modeChip, searchMode === "exact" && styles.modeChipActive]}
-              onPress={() => { setSearchMode("exact"); setSemanticResults(null); }}
+              onPress={() => { setSearchMode("exact"); setSemanticResults(null); setHasSearchedSemantic(false); setSemanticAnswer(""); }}
             >
               <Text style={[styles.modeChipText, searchMode === "exact" && styles.modeChipTextActive]}>
                 Exact
@@ -336,17 +353,28 @@ export default function HomeScreen() {
           </View>
           {searchMode === "semantic" && (
             <Text style={styles.searchHint}>
-              Try: &quot;coffee last week&quot;, &quot;dinner with Alex&quot; — then tap Search
+              Try: &quot;coffee last week&quot;, &quot;dinner with Alex&quot; — tap search icon
             </Text>
           )}
         </View>
 
+        {/* Semantic search answer — shown above results when available */}
+        {searchMode === "semantic" && hasSearchedSemantic && (semanticSearching || semanticAnswer) && (
+          <View style={styles.answerBanner}>
+            {semanticSearching ? (
+              <Text style={styles.answerText}>Searching...</Text>
+            ) : (
+              <Text style={styles.answerText}>{semanticAnswer || "No answer for this query."}</Text>
+            )}
+          </View>
+        )}
+
         {/* Recent transactions */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {hasSearched && searchQuery.trim() ? "Results" : "Recent"}
+            {searchQuery.trim() ? "Results" : "Recent"}
           </Text>
-          {(!hasSearched || !searchQuery.trim()) && (
+          {!searchQuery.trim() && (
             <Text style={styles.sectionMeta}>{transactions.length} transactions</Text>
           )}
         </View>
@@ -370,14 +398,48 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Floating Receipt Scan FAB — always one tap to scan */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push("/(tabs)/receipt")}
-        activeOpacity={0.9}
+      {/* FAB — only on Home tab */}
+      {isFocused && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setShowFabMenu(true)}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      <Modal
+        visible={showFabMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFabMenu(false)}
       >
-        <Ionicons name="receipt" size={28} color="#fff" />
-      </TouchableOpacity>
+        <Pressable style={styles.fabOverlay} onPress={() => setShowFabMenu(false)}>
+          <View style={styles.fabMenu}>
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => {
+                setShowFabMenu(false);
+                router.push("/(tabs)/receipt");
+              }}
+            >
+              <Ionicons name="receipt" size={24} color="#3D8E62" />
+              <Text style={styles.fabMenuText}>Scan receipt</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.fabMenuItem}
+              onPress={() => {
+                setShowFabMenu(false);
+                router.push("/(tabs)/add-expense");
+              }}
+            >
+              <Ionicons name="add-circle" size={24} color="#3D8E62" />
+              <Text style={styles.fabMenuText}>Add expense</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -434,13 +496,9 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   searchInput: { flex: 1, fontSize: 15, color: "#1F2937", padding: 0 },
-  searchButton: {
-    backgroundColor: "#3D8E62",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
+  searchIconBtn: {
+    padding: 6,
   },
-  searchButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   searchModeRow: { flexDirection: "row", gap: 8, marginTop: 10 },
   modeChip: {
     paddingHorizontal: 12,
@@ -455,6 +513,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
     marginTop: 6,
+  },
+  answerBanner: {
+    backgroundColor: "#EEF7F2",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#D1EAE0",
+    padding: 16,
+    marginBottom: 16,
+  },
+  answerText: {
+    fontSize: 15,
+    color: "#2D5A44",
+    lineHeight: 22,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -562,4 +633,29 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  fabOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+    paddingBottom: 120,
+    paddingHorizontal: 20,
+  },
+  fabMenu: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabMenuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  fabMenuText: { fontSize: 16, fontWeight: "600", color: "#1F2937" },
 });

@@ -172,3 +172,42 @@ export function usePersonDetail(key: string | null) {
 
   return { detail, loading, refetch: fetchDetail };
 }
+
+export interface RecentActivityItem {
+  id: string;
+  who: string;
+  action: string;
+  what: string;
+  in: string;
+  direction: "get_back" | "owe" | "settled";
+  amount: number;
+  time: string;
+}
+
+export function useRecentActivity(enabled = true) {
+  const apiFetch = useApiFetch();
+  const [activity, setActivity] = useState<RecentActivityItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchActivity = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await apiFetch("/api/groups/recent-activity");
+      if (res.ok) {
+        const data = await res.json();
+        setActivity(data.activity ?? []);
+      } else setActivity([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiFetch, enabled]);
+
+  useEffect(() => {
+    fetchActivity();
+  }, [fetchActivity]);
+
+  return { activity, loading, refetch: fetchActivity };
+}

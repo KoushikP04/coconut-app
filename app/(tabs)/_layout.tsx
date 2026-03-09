@@ -23,21 +23,33 @@ export default function TabLayout() {
         name="shared"
         options={{
           title: "Shared",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: "Insights",
+          tabBarIcon: ({ color, size }) => <Ionicons name="analytics" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="receipt"
         options={{
-          title: "Receipt",
-          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" color={color} size={size} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="pay"
         options={{
-          title: "Pay",
-          tabBarIcon: ({ color, size }) => <Ionicons name="card" color={color} size={size} />,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="add-expense"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

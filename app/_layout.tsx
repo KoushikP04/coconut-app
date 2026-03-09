@@ -37,8 +37,17 @@ function TerminalTokenProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
+
 function AuthSwitch() {
   const { isSignedIn, isLoaded } = useAuth();
+  if (SKIP_AUTH) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    );
+  }
   if (!isLoaded) return null;
   if (isSignedIn) {
     return (
