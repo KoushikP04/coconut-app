@@ -13,8 +13,14 @@ import { useSignIn } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 
+function getClerkErrorMessage(e: unknown, fallback: string): string {
+  const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
+  const first = err?.errors?.[0];
+  return first?.longMessage || first?.message || err?.message || fallback;
+}
+
 export default function SignInScreen() {
-  const signInData = useSignIn();
+  const { isLoaded, signIn, setActive } = useSignIn();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,16 +40,17 @@ export default function SignInScreen() {
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === "SIGN_IN_CANCELLED" || err.code === "-5") return;
-      setError(err.message ?? "Google sign-in failed");
+      setError(getClerkErrorMessage(e, "Google sign-in failed"));
     } finally {
       setGoogleLoading(false);
     }
   };
 
   const handleSignIn = async () => {
-    const signIn = (signInData as { signIn?: { create: (p: object) => Promise<{ createdSessionId?: string }> } }).signIn;
-    const setActive = (signInData as { setActive?: (p: { session: string }) => Promise<void> }).setActive;
-    if (!signIn?.create) return;
+    if (!isLoaded || !signIn) {
+      setError("Auth is still loading. Please try again.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -53,13 +60,12 @@ export default function SignInScreen() {
         await setActive({ session: result.createdSessionId });
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Sign in failed");
+      setError(getClerkErrorMessage(e, "Sign in failed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const isLoaded = true;
   if (!isLoaded) {
     return (
       <View style={styles.container}>

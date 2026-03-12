@@ -250,6 +250,11 @@ export default function HomeScreen() {
               Signed in as {user.primaryEmailAddress.emailAddress}
             </Text>
           ) : null}
+          {user?.id ? (
+            <Text style={styles.connectAccountId}>
+              Clerk user: {user.id}
+            </Text>
+          ) : null}
           <Text style={styles.connectSubtitle}>
             Link your account to see spending, transactions, and split receipts with friends.
           </Text>
@@ -670,6 +675,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6B7280",
     marginTop: 6,
+    textAlign: "center",
+  },
+  connectAccountId: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 4,
     textAlign: "center",
   },
   connectSubtitle: {

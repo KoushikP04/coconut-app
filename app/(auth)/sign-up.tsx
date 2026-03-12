@@ -13,6 +13,12 @@ import { useSignUp } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 
+function getClerkErrorMessage(e: unknown, fallback: string): string {
+  const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
+  const first = err?.errors?.[0];
+  return first?.longMessage || first?.message || err?.message || fallback;
+}
+
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
@@ -36,7 +42,7 @@ export default function SignUpScreen() {
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === "SIGN_IN_CANCELLED" || err.code === "-5") return;
-      setError(err.message ?? "Google sign-up failed");
+      setError(getClerkErrorMessage(e, "Google sign-up failed"));
     } finally {
       setGoogleLoading(false);
     }
@@ -44,6 +50,14 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     if (!signUp) return;
+    if (!email || !password) {
+      setError("Email and password are required.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -51,7 +65,7 @@ export default function SignUpScreen() {
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setPendingVerification(true);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Sign up failed");
+      setError(getClerkErrorMessage(e, "Sign up failed"));
     } finally {
       setLoading(false);
     }
@@ -65,9 +79,11 @@ export default function SignUpScreen() {
       const result = await signUp.attemptEmailAddressVerification({ code });
       if (result.status === "complete" && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
+      } else {
+        setError("Verification is not complete yet. Please try again.");
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Verification failed");
+      setError(getClerkErrorMessage(e, "Verification failed"));
     } finally {
       setLoading(false);
     }
@@ -144,10 +160,7 @@ export default function SignUpScreen() {
       <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
         onPress={pendingVerification ? handleVerify : handleSignUp}
-        disabled={
-          loading ||
-          (pendingVerification ? !code : !email || !password || password.length < 8)
-        }
+        disabled={loading || (pendingVerification ? !code : false)}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
