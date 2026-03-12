@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
-import { useClerk, useUser } from "@clerk/expo";
+import { useAuth, useClerk, useUser } from "@clerk/expo";
 import { useApiFetch } from "../../lib/api";
 import { useTransactions, type Transaction } from "../../hooks/useTransactions";
 import { useSubscriptions } from "../../hooks/useSubscriptions";
@@ -112,6 +112,7 @@ function filterExact(transactions: Transaction[], q: string): Transaction[] {
 }
 
 export default function HomeScreen() {
+  const { getToken } = useAuth();
   const { signOut } = useClerk();
   const { user } = useUser();
   const apiFetch = useApiFetch();
@@ -192,8 +193,32 @@ export default function HomeScreen() {
     }
   };
 
-  const openConnect = () =>
-    Linking.openURL(`${API_URL.replace(/\/$/, "")}/connect-from-app`);
+  const openConnect = async () => {
+    const base = API_URL.replace(/\/$/, "");
+    const email = user?.primaryEmailAddress?.emailAddress;
+    try {
+      let token: string | null = null;
+      for (let i = 0; i < 4; i++) {
+        token = await getToken({ skipCache: i > 0 });
+        if (token) break;
+        await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+      }
+      if (token) {
+        const res = await apiFetch("/api/auth/handoff-token", { method: "POST" });
+        if (res.ok) {
+          const { url } = await res.json();
+          if (url) {
+            Linking.openURL(url);
+            return;
+          }
+        }
+      }
+    } catch {
+      /* fallback */
+    }
+    const fallback = `${base}/connect-from-app`;
+    Linking.openURL(email ? `${fallback}?hint=${encodeURIComponent(email)}` : fallback);
+  };
   const openSettings = () => Linking.openURL(`${API_URL.replace(/\/$/, "")}/app/settings`);
 
   // Loading — never show dashboard until we know linked status

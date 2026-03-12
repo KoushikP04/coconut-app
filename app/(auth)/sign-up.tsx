@@ -9,20 +9,22 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useSignIn } from "@clerk/expo";
+import { useSignUp } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 
-export default function SignInScreen() {
-  const signInData = useSignIn();
+export default function SignUpScreen() {
+  const { isLoaded, signUp, setActive } = useSignUp();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [pendingVerification, setPendingVerification] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     if (Platform.OS !== "ios" && Platform.OS !== "android") return;
     setError("");
     setGoogleLoading(true);
@@ -34,32 +36,43 @@ export default function SignInScreen() {
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === "SIGN_IN_CANCELLED" || err.code === "-5") return;
-      setError(err.message ?? "Google sign-in failed");
+      setError(err.message ?? "Google sign-up failed");
     } finally {
       setGoogleLoading(false);
     }
   };
 
-  const handleSignIn = async () => {
-    const signIn = (signInData as { signIn?: { create: (p: object) => Promise<{ createdSessionId?: string }> } }).signIn;
-    const setActive = (signInData as { setActive?: (p: { session: string }) => Promise<void> }).setActive;
-    if (!signIn?.create) return;
+  const handleSignUp = async () => {
+    if (!signUp) return;
     setError("");
     setLoading(true);
     try {
-      const res = await signIn.create({ identifier: email, password } as { identifier: string; password: string });
-      const result = res as { createdSessionId?: string };
-      if (result?.createdSessionId && setActive) {
-        await setActive({ session: result.createdSessionId });
-      }
+      await signUp.create({ emailAddress: email, password });
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setPendingVerification(true);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Sign in failed");
+      setError(e instanceof Error ? e.message : "Sign up failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const isLoaded = true;
+  const handleVerify = async () => {
+    if (!signUp || !setActive) return;
+    setError("");
+    setLoading(true);
+    try {
+      const result = await signUp.attemptEmailAddressVerification({ code });
+      if (result.status === "complete" && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isLoaded) {
     return (
       <View style={styles.container}>
@@ -74,12 +87,12 @@ export default function SignInScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <Text style={styles.title}>Coconut</Text>
-      <Text style={styles.subtitle}>Sign in to continue</Text>
+      <Text style={styles.subtitle}>Create an account</Text>
       {(Platform.OS === "ios" || Platform.OS === "android") && (
         <>
           <TouchableOpacity
             style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
-            onPress={handleGoogleSignIn}
+            onPress={handleGoogleSignUp}
             disabled={googleLoading}
           >
             {googleLoading ? (
@@ -104,32 +117,52 @@ export default function SignInScreen() {
         keyboardType="email-address"
         autoComplete="email"
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="password"
-      />
+      {pendingVerification ? (
+        <>
+          <Text style={styles.verifyHint}>Check your email for a verification code.</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Verification code"
+            value={code}
+            onChangeText={setCode}
+            autoCapitalize="none"
+            keyboardType="number-pad"
+            autoComplete="one-time-code"
+          />
+        </>
+      ) : (
+        <TextInput
+          style={styles.input}
+          placeholder="Password (min 8 chars)"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="password-new"
+        />
+      )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleSignIn}
-        disabled={loading}
+        onPress={pendingVerification ? handleVerify : handleSignUp}
+        disabled={
+          loading ||
+          (pendingVerification ? !code : !email || !password || password.length < 8)
+        }
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
+          <Text style={styles.buttonText}>
+            {pendingVerification ? "Verify email" : "Create account"}
+          </Text>
         )}
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.linkButton}
-        onPress={() => router.replace("/(auth)/sign-up")}
+        onPress={() => router.replace("/(auth)/sign-in")}
       >
         <Text style={styles.linkText}>
-          Don&apos;t have an account? Sign up
+          Already have an account? Sign in
         </Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
@@ -193,6 +226,12 @@ const styles = StyleSheet.create({
     color: "#3D8E62",
     fontSize: 14,
     fontWeight: "500",
+  },
+  verifyHint: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 12,
   },
   googleButton: {
     backgroundColor: "#4285F4",
