@@ -5,8 +5,8 @@ import { router } from "expo-router";
 import { useApiFetch } from "../lib/api";
 
 const POLL_INTERVAL_MS = 2000;
-const MAX_WAIT_MS = 15000; // 15s max
-const SHOW_SKIP_AFTER_MS = 3000; // Show "Continue" button after 3s
+const MAX_WAIT_MS = 45000; // Give auth/token + first sync enough time
+const SHOW_SKIP_AFTER_MS = 8000; // Show manual continue after 8s
 
 /**
  * Handles coconut://connected deep link from web connect flow.
@@ -34,13 +34,17 @@ export default function ConnectedScreen() {
       const elapsed = Date.now() - startRef.current;
       if (elapsed >= MAX_WAIT_MS) {
         setStatus("timeout");
-        goHome();
         return;
       }
       try {
         const res = await apiFetch("/api/plaid/status");
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
         if (cancelled) return;
+        // 425 from app client means auth/token still warming up — keep polling.
+        if (res.status === 425) {
+          if (!cancelled) timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
+          return;
+        }
         if (data?.linked) {
           setStatus("linked");
           goHome();
@@ -64,7 +68,7 @@ export default function ConnectedScreen() {
 
   const subtext =
     status === "timeout"
-      ? "Taking you back. Tap refresh on the home screen."
+      ? "Still syncing. You can continue now, or wait and we'll keep checking."
       : "Importing your transactions…";
 
   return (

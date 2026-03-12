@@ -25,6 +25,7 @@ export function useTransactions() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<PlaidStatus>("ok");
   const hasShownInitialLoad = useRef(false);
+  const transientRetryCount = useRef(0);
 
   const fetchData = useCallback((silent = false): Promise<void> => {
     let cancelled = false;
@@ -37,6 +38,19 @@ export function useTransactions() {
       .then((r) => {
         clearTimeout(timeout);
         if (cancelled) return null;
+        if (r.status === 425) {
+          // Clerk token warming up: retry silently a few times instead of showing "Connect bank".
+          if (transientRetryCount.current < 8) {
+            transientRetryCount.current += 1;
+            setTimeout(() => {
+              if (!cancelled) fetchData(true);
+            }, 800);
+            return null;
+          }
+          setLoading(false);
+          return null;
+        }
+        transientRetryCount.current = 0;
         if (r.status === 401 || r.status === 404) {
           // 404 = Clerk's protect() for unauthenticated; 401 = our middleware
           setStatus("unauthorized");
