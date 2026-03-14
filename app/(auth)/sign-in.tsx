@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -41,6 +41,10 @@ export default function SignInScreen() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    console.log("[SignInScreen] mounted isLoaded=", isLoaded);
+  }, [isLoaded]);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
