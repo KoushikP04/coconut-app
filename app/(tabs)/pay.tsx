@@ -278,8 +278,10 @@ export default function PayScreen() {
       )}
 
       <Text style={styles.hint}>
-        Requires a development build (expo run:ios / expo run:android). iOS: iPhone XS or later.
-        Android: NFC device, API 26+.
+        Tap to Pay does not work in Expo Go. Run{" "}
+        <Text style={styles.hintCode}>expo run:ios</Text> or{" "}
+        <Text style={styles.hintCode}>expo run:android</Text> to build with native Stripe support.
+        {"\n"}iOS: iPhone XS or later. Android: NFC device, API 26+.
       </Text>
     </View>
   );
@@ -364,5 +366,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9CA3AF",
     lineHeight: 18,
+  },
+  hintCode: {
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
 });

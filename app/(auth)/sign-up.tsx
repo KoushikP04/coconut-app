@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  View,
   Text,
   StyleSheet,
   TextInput,
@@ -8,7 +7,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Pressable,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSignUp } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
@@ -89,174 +91,173 @@ export default function SignUpScreen() {
     }
   };
 
-  // When Clerk isn't loaded, show form with disabled state (like sign-in) instead of blocking.
   const formDisabled = !isLoaded;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <Text style={styles.title}>Coconut</Text>
-      <Text style={styles.subtitle}>Create an account</Text>
-      {(Platform.OS === "ios" || Platform.OS === "android") && (
-        <>
-          <TouchableOpacity
-            style={[styles.googleButton, (googleLoading || formDisabled) && styles.buttonDisabled]}
-            onPress={handleGoogleSignUp}
-            disabled={googleLoading || formDisabled}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            )}
-          </TouchableOpacity>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Brand */}
+          <View style={styles.brand}>
+            <Text style={styles.logo}>🥥</Text>
+            <Text style={styles.title}>Coconut</Text>
+            <Text style={styles.subtitle}>Create your account</Text>
+          </View>
+
+          {/* Primary: Google */}
+          {(Platform.OS === "ios" || Platform.OS === "android") && (
+            <TouchableOpacity
+              style={[styles.googleBtn, (googleLoading || formDisabled) && styles.btnDisabled]}
+              onPress={handleGoogleSignUp}
+              disabled={googleLoading || formDisabled}
+            >
+              {googleLoading ? (
+                <ActivityIndicator size="small" color="#5F6368" />
+              ) : (
+                <>
+                  <Text style={styles.googleIcon}>G</Text>
+                  <Text style={styles.googleText}>Continue with Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
-        </>
-      )}
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-      />
-      {pendingVerification ? (
-        <>
-          <Text style={styles.verifyHint}>Check your email for a verification code.</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Verification code"
-            value={code}
-            onChangeText={setCode}
-            autoCapitalize="none"
-            keyboardType="number-pad"
-            autoComplete="one-time-code"
-          />
-        </>
-      ) : (
-        <TextInput
-          style={styles.input}
-          placeholder="Password (min 8 chars)"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete="password-new"
-        />
-      )}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TouchableOpacity
-        style={[styles.button, (loading || formDisabled) && styles.buttonDisabled]}
-        onPress={pendingVerification ? handleVerify : handleSignUp}
-        disabled={loading || formDisabled || (pendingVerification ? !code : false)}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>
-            {pendingVerification ? "Verify email" : "Create account"}
-          </Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.linkButton}
-        onPress={() => router.replace("/(auth)/sign-in")}
-      >
-        <Text style={styles.linkText}>
-          Already have an account? Sign in
-        </Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+
+          {/* Form */}
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#9CA3AF"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              editable={!formDisabled}
+            />
+            {pendingVerification ? (
+              <>
+                <Text style={styles.verifyHint}>We sent a code to your email.</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Verification code"
+                  placeholderTextColor="#9CA3AF"
+                  value={code}
+                  onChangeText={setCode}
+                  autoCapitalize="none"
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  editable={!formDisabled}
+                />
+              </>
+            ) : (
+              <TextInput
+                style={styles.input}
+                placeholder="Password (8+ characters)"
+                placeholderTextColor="#9CA3AF"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password-new"
+                editable={!formDisabled}
+              />
+            )}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <TouchableOpacity
+              style={[styles.primaryBtn, (loading || formDisabled) && styles.btnDisabled]}
+              onPress={pendingVerification ? handleVerify : handleSignUp}
+              disabled={loading || formDisabled || (pendingVerification ? !code : false)}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.primaryBtnText}>
+                  {pendingVerification ? "Verify email" : "Create account"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Sign in link */}
+          <Pressable
+            style={styles.swapBtn}
+            onPress={() => router.replace("/(auth)/sign-in")}
+          >
+            <Text style={styles.swapText}>Already have an account? </Text>
+            <Text style={styles.swapLink}>Sign in</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: "#F7FAF8",
-    justifyContent: "center",
+  safe: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 48,
+    paddingBottom: 32,
+    minHeight: "100%",
   },
+  brand: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logo: { fontSize: 48, marginBottom: 12 },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
-    color: "#1F2937",
-    textAlign: "center",
-    marginBottom: 8,
+    color: "#111827",
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 24,
+    marginTop: 6,
   },
-  input: {
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
     backgroundColor: "#fff",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#E5E7EB",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    marginBottom: 12,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
   },
-  error: {
-    color: "#DC2626",
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  button: {
-    backgroundColor: "#3D8E62",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
+  googleIcon: {
+    fontSize: 18,
     fontWeight: "600",
+    color: "#4285F4",
   },
-  linkButton: {
-    marginTop: 16,
-    alignSelf: "center",
-  },
-  linkText: {
-    color: "#3D8E62",
-    fontSize: 14,
+  googleText: {
+    fontSize: 16,
     fontWeight: "500",
-  },
-  verifyHint: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  googleButton: {
-    backgroundColor: "#4285F4",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  googleButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#374151",
   },
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 16,
+    marginVertical: 28,
   },
   dividerLine: {
     flex: 1,
@@ -264,8 +265,50 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5E7EB",
   },
   dividerText: {
-    marginHorizontal: 12,
-    color: "#6B7280",
-    fontSize: 14,
+    marginHorizontal: 16,
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
+  form: { gap: 12 },
+  input: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#111827",
+  },
+  verifyHint: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  error: {
+    fontSize: 14,
+    color: "#DC2626",
+    marginTop: 4,
+  },
+  primaryBtn: {
+    backgroundColor: "#3D8E62",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  primaryBtnText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  btnDisabled: { opacity: 0.6 },
+  swapBtn: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 28,
+  },
+  swapText: { fontSize: 15, color: "#6B7280" },
+  swapLink: { fontSize: 15, fontWeight: "600", color: "#3D8E62" },
 });

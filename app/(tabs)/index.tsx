@@ -11,6 +11,8 @@ import {
   Linking,
   Pressable,
   Modal,
+  Image,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +20,7 @@ import { router } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
 import { useAuth, useClerk, useUser } from "@clerk/expo";
 import { useApiFetch } from "../../lib/api";
+import { getMerchantLogoUrl } from "../../lib/merchant-logos";
 import { useTransactions, type Transaction } from "../../hooks/useTransactions";
 import { useSubscriptions } from "../../hooks/useSubscriptions";
 import { useGroupsSummary } from "../../hooks/useGroups";
@@ -50,6 +53,9 @@ type ApiTransaction = {
   amount?: number;
   date?: string;
   primary_category?: string | null;
+  is_pending?: boolean;
+  accountMask?: string | null;
+  accountName?: string | null;
 };
 
 function mapApiTx(t: ApiTransaction): Transaction {
@@ -65,40 +71,179 @@ function mapApiTx(t: ApiTransaction): Transaction {
     date: t.date ?? "",
     dateStr: t.date ? fmtDate(t.date) : "",
     merchantColor: hashColor(merchant),
+    isPending: t.is_pending ?? false,
+    accountMask: t.accountMask ?? null,
+    accountName: t.accountName ?? null,
   };
 }
 
 type SearchMode = "exact" | "semantic";
 
-function MerchantAvatar({ name, color }: { name: string; color: string }) {
+/** Letter avatar fallback when no logo or load fails. */
+function LetterAvatar({ name, color, size = "sm" }: { name: string; color: string; size?: "sm" | "lg" }) {
   const initial = (name[0] || "").toUpperCase();
+  const dim = size === "lg" ? 48 : 40;
   return (
-    <View style={[styles.avatar, { backgroundColor: color }]}>
-      <Text style={styles.avatarText}>{initial || "$"}</Text>
+    <View style={[styles.avatar, { backgroundColor: color, width: dim, height: dim }]}>
+      <Text style={[styles.avatarText, size === "lg" && { fontSize: 18 }]}>{initial || "$"}</Text>
     </View>
   );
 }
 
+/** Logo for allowlisted merchants (matches web); letter avatar for others. */
+function MerchantLogo({ name, color, size = "sm" }: { name: string; color: string; size?: "sm" | "lg" }) {
+  const [imgError, setImgError] = useState(false);
+  const logoUrl = getMerchantLogoUrl(name, size === "lg" ? 128 : 64);
+
+  if (!logoUrl || imgError) return <LetterAvatar name={name} color={color} size={size} />;
+
+  const dim = size === "lg" ? 48 : 40;
+  return (
+    <View style={[styles.avatar, styles.avatarLogo, { width: dim, height: dim }]}>
+      <Image
+        source={{ uri: logoUrl }}
+        style={size === "lg" ? styles.avatarImgLg : styles.avatarImg}
+        onError={() => setImgError(true)}
+      />
+    </View>
+  );
+}
+
+/** P2P sends (Zelle, Venmo, Cash App TRANSFER_OUT) should display as outflow (-) even if amount is positive. */
+function isDisplayAsOutflow(tx: Transaction): boolean {
+  const cat = (tx.category ?? "").toUpperCase();
+  const text = `${tx.merchant ?? ""} ${tx.rawDescription ?? ""}`.toLowerCase();
+  const isTransferOut = cat.includes("TRANSFER") && cat.includes("OUT");
+  const looksLikeP2PSend = /zelle|venmo|cash\s*app/i.test(text);
+  if (isTransferOut && looksLikeP2PSend && tx.amount > 0) return true;
+  // Rideshare/transportation (Uber, Lyft) are always expenses — never show green even if amount is positive
+  const isTransport = cat.includes("TRANSPORTATION") || /uber|lyft|rideshare|taxi/i.test(text);
+  return !!(isTransport && tx.amount > 0);
+}
+
+/** Credit card payments (TRANSFER_OUT reducing debt) display as positive/green like income. */
+function isDisplayAsInflow(tx: Transaction): boolean {
+  if (isDisplayAsOutflow(tx)) return false;
+  if (tx.amount > 0) return true;
+  const cat = (tx.category ?? "").toUpperCase();
+  const merchant = (tx.merchant ?? tx.rawDescription ?? "").toLowerCase();
+  const isTransferOut = cat.includes("TRANSFER") && cat.includes("OUT");
+  const raw = (tx.rawDescription ?? "").toLowerCase();
+  const looksLikeCardPayment =
+    /credit\s*card|card\s*payment|payment\s*to|autopay|pay\s*\d|payment\s*[- ]?credit|^payment$/i.test(merchant) ||
+    /credit\s*card|card\s*payment|payment\s*to|autopay|payment\s*[- ]?credit/i.test(raw);
+  return !!(isTransferOut && looksLikeCardPayment);
+}
+
+function formatAmountDisplay(tx: Transaction): { text: string; isInflow: boolean } {
+  const isInflow = isDisplayAsInflow(tx);
+  const absAmt = Math.abs(tx.amount).toFixed(2);
+  const sign = isInflow ? "+" : "-";
+  return { text: `${sign}$${absAmt}`, isInflow };
+}
+
+function TransactionDetailModal({
+  tx,
+  onClose,
+  formatAmount,
+}: {
+  tx: Transaction;
+  onClose: () => void;
+  formatAmount: (t: Transaction) => { text: string; isInflow: boolean };
+}) {
+  const { text: amountText, isInflow } = formatAmount(tx);
+  return (
+    <Modal visible={!!tx} transparent animationType="slide">
+      <Pressable style={styles.detailOverlay} onPress={onClose}>
+        <Pressable style={styles.detailSheet} onPress={(e) => e.stopPropagation()}>
+          <View style={styles.detailHandle} />
+          <View style={styles.detailHeader}>
+            <View style={styles.detailHeaderRow}>
+              <MerchantLogo name={tx.merchant} color={tx.merchantColor} size="lg" />
+              <View style={styles.detailHeaderText}>
+                <Text style={styles.detailMerchant} numberOfLines={1}>{tx.merchant}</Text>
+            <Text style={[styles.detailAmount, isInflow ? styles.txAmountInflow : styles.txAmountOutflow]}>
+                {amountText}
+              </Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.detailMeta}>
+            <View style={styles.detailMetaRow}>
+              <Text style={styles.detailLabel}>Date</Text>
+              <Text style={styles.detailValue}>{tx.dateStr}</Text>
+            </View>
+            <View style={styles.detailMetaRow}>
+              <Text style={styles.detailLabel}>Status</Text>
+              <Text style={styles.detailValue}>{tx.isPending ? "Pending" : "Posted"}</Text>
+            </View>
+            <View style={styles.detailMetaRow}>
+              <Text style={styles.detailLabel}>Category</Text>
+              <Text style={styles.detailValue}>{tx.category}</Text>
+            </View>
+            {(tx.accountName || tx.accountMask) ? (
+              <View style={styles.detailMetaRow}>
+                <Text style={styles.detailLabel}>Account</Text>
+                <Text style={styles.detailValue}>{tx.accountName || (tx.accountMask ? `••••${tx.accountMask}` : "")}</Text>
+              </View>
+            ) : null}
+            {tx.rawDescription ? (
+              <View style={styles.detailMetaRow}>
+                <Text style={styles.detailLabel}>Description</Text>
+                <Text style={[styles.detailValue, styles.detailRaw]} selectable>
+                  {tx.rawDescription}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <TouchableOpacity style={styles.detailCloseBtn} onPress={onClose}>
+            <Text style={styles.detailCloseText}>Close</Text>
+          </TouchableOpacity>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+/** Bank tag for multi-account display, e.g. "••••1234" or "Chase Checking" */
+function BankTag({ tx }: { tx: Transaction }) {
+  const tag = tx.accountName || (tx.accountMask ? `••••${tx.accountMask}` : null);
+  if (!tag) return null;
+  return (
+    <View style={styles.bankTag}>
+      <Text style={styles.bankTagText}>{tag}</Text>
+    </View>
+  );
+}
+
+
 function TransactionRow({ tx, onPress }: { tx: Transaction; onPress?: () => void }) {
+  const { text: amountText, isInflow } = formatAmountDisplay(tx);
   return (
     <Pressable style={styles.txRow} onPress={onPress}>
-      <MerchantAvatar name={tx.merchant} color={tx.merchantColor} />
+      <MerchantLogo name={tx.merchant} color={tx.merchantColor} />
       <View style={styles.txInfo}>
-        <Text style={styles.txMerchant} numberOfLines={1}>{tx.merchant}</Text>
+        <View style={styles.txMerchantRow}>
+          <Text style={styles.txMerchant} numberOfLines={1}>{tx.merchant}</Text>
+          <BankTag tx={tx} />
+        </View>
         <Text style={styles.txCategory}>{tx.category}</Text>
       </View>
       <View style={styles.txRight}>
-        <Text style={styles.txAmount}>${Math.abs(tx.amount).toFixed(2)}</Text>
+        <Text style={[styles.txAmount, isInflow ? styles.txAmountInflow : styles.txAmountOutflow]}>
+          {amountText}
+        </Text>
         <Text style={styles.txDate}>{tx.dateStr}</Text>
       </View>
     </Pressable>
   );
 }
 
+/** Monthly spend = expenses only (amount < 0), matching web dashboard. */
 function deriveMonthlySpend(transactions: Transaction[]): number {
   const thisMonth = new Date().toISOString().slice(0, 7);
   return transactions
-    .filter((tx) => tx.date.startsWith(thisMonth))
+    .filter((tx) => tx.date.startsWith(thisMonth) && tx.amount < 0)
     .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 }
 
@@ -110,6 +255,73 @@ function filterExact(transactions: Transaction[], q: string): Transaction[] {
       tx.merchant.toLowerCase().includes(lower) ||
       tx.category.toLowerCase().includes(lower) ||
       (tx.rawDescription && tx.rawDescription.toLowerCase().includes(lower))
+  );
+}
+
+const STUCK_DELAY_MS = 4000;
+
+function LoadingScreen({
+  onSignOut,
+  onOpenBrowser,
+  onRetry,
+}: {
+  onSignOut: () => void;
+  onOpenBrowser: () => void;
+  onRetry: () => void;
+}) {
+  const pulse = useRef(new Animated.Value(1)).current;
+  const [showEscapeHatches, setShowEscapeHatches] = useState(false);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1.15,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.92,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowEscapeHatches(true), STUCK_DELAY_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.loadingCard}>
+        <Animated.View style={{ transform: [{ scale: pulse }] }}>
+          <Text style={styles.loadingCoconut}>🥥</Text>
+        </Animated.View>
+        <Text style={styles.loadingTitle}>Loading your accounts…</Text>
+        <Text style={styles.loadingSubtitle}>
+          Fetching transactions from your bank
+        </Text>
+        {showEscapeHatches && (
+          <View style={styles.loadingEscape}>
+            <TouchableOpacity style={styles.loadingEscapeBtn} onPress={onRetry}>
+              <Ionicons name="refresh" size={16} color="#3D8E62" />
+              <Text style={styles.loadingEscapeText}>Retry</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.loadingEscapeBtn} onPress={onOpenBrowser}>
+              <Text style={styles.loadingEscapeText}>Open in browser</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.loadingEscapeBtn} onPress={onSignOut}>
+              <Text style={[styles.loadingEscapeText, styles.loadingEscapeTextMuted]}>Sign out</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -131,6 +343,7 @@ export default function HomeScreen() {
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [showFabMenu, setShowFabMenu] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const isFocused = useIsFocused();
   const prevFocused = useRef(false);
 
@@ -163,18 +376,25 @@ export default function HomeScreen() {
     ? groupsSummary.totalOwedToMe - groupsSummary.totalIOwe
     : 0;
 
-  const recentTransactions = transactions.slice(0, 50);
-
   const [hasSearchedSemantic, setHasSearchedSemantic] = useState(false);
   const [semanticAnswer, setSemanticAnswer] = useState<string>("");
 
   const displayTransactions = useMemo(() => {
+    let list: Transaction[];
     if (searchMode === "exact") {
-      return filterExact(recentTransactions, searchQuery);
+      list = filterExact(transactions, searchQuery);
+    } else if (hasSearchedSemantic && semanticResults !== null) {
+      list = semanticResults;
+    } else {
+      list = transactions;
     }
-    if (hasSearchedSemantic && semanticResults !== null) return semanticResults;
-    return recentTransactions;
-  }, [searchMode, semanticResults, recentTransactions, searchQuery, hasSearchedSemantic]);
+    // Sort: pending first, then by date desc (recent first) — match web
+    return [...list].sort((a, b) => {
+      if ((a.isPending ? 0 : 1) !== (b.isPending ? 0 : 1))
+        return (a.isPending ? 0 : 1) - (b.isPending ? 0 : 1);
+      return b.date.localeCompare(a.date);
+    });
+  }, [searchMode, transactions, semanticResults, searchQuery, hasSearchedSemantic]);
 
   const runSemanticSearch = async () => {
     const q = searchQuery.trim();
@@ -250,7 +470,7 @@ export default function HomeScreen() {
       setConnectError("Could not open browser. Please sign in first, then try again.");
     }
   };
-  const openSettings = () => Linking.openURL(`${API_URL.replace(/\/$/, "")}/app/settings`);
+  const openSettings = () => router.push("/(tabs)/settings");
 
   // Loading — show escape hatches FIRST; cached session can land us here, then API/token may hang
   const returnToAppUrl = `${API_URL.replace(/\/$/, "")}/auth/return-to-app`;
@@ -265,37 +485,14 @@ export default function HomeScreen() {
     }
   };
 
-  // Never show a full-screen spinner — show Connect UI with sign out / refresh options
+  // Smooth loading screen — coconut pulse animation; escape hatches after delay
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={[styles.connectCard, { padding: 24 }]}>
-          <Ionicons name="time-outline" size={44} color="#3D8E62" />
-          <Text style={styles.connectTitle}>Checking status…</Text>
-          <Text style={styles.connectSubtitle}>
-            Tap below to sign out or open the web app.
-          </Text>
-          <TouchableOpacity
-            style={[styles.connectButton, { marginBottom: 12 }]}
-            onPress={handleSignOut}
-          >
-            <Text style={styles.connectButtonText}>Sign out</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.connectButton}
-            onPress={() => Linking.openURL(webLoginUrl)}
-          >
-            <Text style={styles.connectButtonText}>Open login in browser</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.connectRefreshButton}
-            onPress={() => refetch(false)}
-          >
-            <Ionicons name="refresh" size={16} color="#3D8E62" />
-            <Text style={styles.connectRefreshText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <LoadingScreen
+        onSignOut={handleSignOut}
+        onOpenBrowser={() => Linking.openURL(webLoginUrl)}
+        onRetry={() => refetch(false)}
+      />
     );
   }
 
@@ -559,9 +756,9 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>
             {searchQuery.trim() ? "Results" : "Recent"}
           </Text>
-          {!searchQuery.trim() && (
-            <Text style={styles.sectionMeta}>{transactions.length} transactions</Text>
-          )}
+          <Text style={styles.sectionMeta}>
+            {displayTransactions.length} transaction{displayTransactions.length !== 1 ? "s" : ""}
+          </Text>
         </View>
 
         {semanticSearching ? (
@@ -577,9 +774,40 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          displayTransactions.slice(0, 15).map((tx) => (
-            <TransactionRow key={tx.id} tx={tx} />
-          ))
+          <>
+            {displayTransactions.filter((tx) => tx.isPending).length > 0 && (
+              <View style={styles.txSection}>
+                <View style={styles.txSectionHeader}>
+                  <Text style={styles.txSectionTitle}>Pending</Text>
+                </View>
+                {displayTransactions
+                  .filter((tx) => tx.isPending)
+                  .map((tx) => (
+                    <TransactionRow
+                      key={tx.id}
+                      tx={tx}
+                      onPress={() => setSelectedTx(tx)}
+                    />
+                  ))}
+              </View>
+            )}
+            {displayTransactions.filter((tx) => !tx.isPending).length > 0 && (
+              <View style={styles.txSection}>
+                <View style={[styles.txSectionHeader, styles.txSectionHeaderPosted]}>
+                  <Text style={styles.txSectionTitlePosted}>Posted</Text>
+                </View>
+                {displayTransactions
+                  .filter((tx) => !tx.isPending)
+                  .map((tx) => (
+                    <TransactionRow
+                      key={tx.id}
+                      tx={tx}
+                      onPress={() => setSelectedTx(tx)}
+                    />
+                  ))}
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -592,6 +820,14 @@ export default function HomeScreen() {
         >
           <Ionicons name="add" size={28} color="#fff" />
         </TouchableOpacity>
+      )}
+
+      {selectedTx && (
+        <TransactionDetailModal
+          tx={selectedTx}
+          onClose={() => setSelectedTx(null)}
+          formatAmount={formatAmountDisplay}
+        />
       )}
 
       <Modal
@@ -720,6 +956,21 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 14, fontWeight: "600", color: "#374151" },
   sectionMeta: { fontSize: 12, color: "#9CA3AF" },
+  txSection: { marginBottom: 16 },
+  txSectionHeader: {
+    backgroundColor: "#FFFBEB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FDE68A",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 4,
+  },
+  txSectionHeaderPosted: {
+    backgroundColor: "#F9FAFB",
+    borderBottomColor: "#F3F4F6",
+  },
+  txSectionTitle: { fontSize: 12, fontWeight: "600", color: "#92400E" },
+  txSectionTitlePosted: { fontSize: 12, fontWeight: "600", color: "#4B5563" },
   txRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -737,12 +988,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  avatarLogo: {
+    backgroundColor: "#F3F4F6",
+    overflow: "hidden",
+  },
+  avatarImg: { width: 28, height: 28 },
+  avatarImgLg: { width: 36, height: 36 },
   avatarText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   txInfo: { flex: 1, marginLeft: 12, minWidth: 0 },
-  txMerchant: { fontSize: 15, fontWeight: "500", color: "#1F2937" },
+  txMerchantRow: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0 },
+  txMerchant: { fontSize: 15, fontWeight: "500", color: "#1F2937", flexShrink: 1 },
+  bankTag: {
+    backgroundColor: "#EEF7F2",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  bankTagText: { fontSize: 10, fontWeight: "500", color: "#3D8E62" },
   txCategory: { fontSize: 12, color: "#6B7280", marginTop: 2 },
   txRight: { alignItems: "flex-end" },
-  txAmount: { fontSize: 15, fontWeight: "600", color: "#1F2937" },
+  txAmount: { fontSize: 15, fontWeight: "600" },
+  txAmountInflow: { color: "#059669" },
+  txAmountOutflow: { color: "#1F2937" },
   txDate: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
   emptyState: {
     alignItems: "center",
@@ -757,6 +1025,33 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   loadingText: { fontSize: 14, color: "#6B7280", marginTop: 12 },
+  loadingCard: {
+    flex: 1,
+    margin: 20,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#EEF7F2",
+  },
+  loadingCoconut: { fontSize: 72, marginBottom: 16 },
+  loadingTitle: { fontSize: 18, fontWeight: "600", color: "#1F2937", marginBottom: 6 },
+  loadingSubtitle: { fontSize: 14, color: "#6B7280" },
+  loadingEscape: {
+    marginTop: 28,
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingEscapeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+  },
+  loadingEscapeText: { fontSize: 14, fontWeight: "500", color: "#3D8E62" },
+  loadingEscapeTextMuted: { color: "#6B7280" },
   connectCard: {
     flex: 1,
     margin: 20,
@@ -877,4 +1172,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   fabMenuText: { fontSize: 16, fontWeight: "600", color: "#1F2937" },
+  detailOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  detailSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+  },
+  detailHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: "#D1D5DB",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  detailHeader: {
+    marginBottom: 20,
+  },
+  detailHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  detailHeaderText: { flex: 1, minWidth: 0 },
+  detailMerchant: { fontSize: 20, fontWeight: "700", color: "#1F2937" },
+  detailAmount: { fontSize: 24, fontWeight: "700", marginTop: 8 },
+  detailMeta: { gap: 12 },
+  detailMetaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 16 },
+  detailLabel: { fontSize: 12, color: "#9CA3AF", minWidth: 80 },
+  detailValue: { fontSize: 14, color: "#374151", flex: 1, textAlign: "right" },
+  detailRaw: { textAlign: "left", fontFamily: "monospace", fontSize: 12 },
+  detailCloseBtn: {
+    marginTop: 24,
+    backgroundColor: "#F3F4F6",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  detailCloseText: { fontSize: 16, fontWeight: "600", color: "#374151" },
 });

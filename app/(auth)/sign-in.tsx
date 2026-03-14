@@ -9,7 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  ScrollView,
+  Pressable,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSignIn } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
@@ -41,10 +44,6 @@ export default function SignInScreen() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
   const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    console.log("[SignInScreen] mounted isLoaded=", isLoaded);
-  }, [isLoaded]);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,7 +60,6 @@ export default function SignInScreen() {
     if (Platform.OS !== "ios" && Platform.OS !== "android") return;
     setError("");
     setGoogleLoading(true);
-    console.log("[auth-mobile] google_sign_in_start");
     try {
       const { createdSessionId, setActive } = await withTimeout(
         startGoogleAuthenticationFlow(),
@@ -74,16 +72,19 @@ export default function SignInScreen() {
           SIGN_IN_TIMEOUT_MS,
           "Google setActive"
         );
-        console.log("[auth-mobile] google_sign_in_success");
+        router.replace("/(tabs)");
       } else {
-        console.warn("[auth-mobile] google_sign_in_missing_session");
         setError("Google sign-in returned no session. Please try again.");
       }
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === "SIGN_IN_CANCELLED" || err.code === "-5") return;
-      console.error("[auth-mobile] google_sign_in_error", e);
-      setError(getClerkErrorMessage(e, "Google sign-in failed"));
+      const msg = getClerkErrorMessage(e, "Google sign-in failed");
+      if (msg.toLowerCase().includes("already signed in")) {
+        router.replace("/(tabs)");
+        return;
+      }
+      setError(msg);
     } finally {
       setGoogleLoading(false);
     }
@@ -100,7 +101,6 @@ export default function SignInScreen() {
     }
     setError("");
     setLoading(true);
-    console.log("[auth-mobile] password_sign_in_start", { email: email.trim().toLowerCase() });
     try {
       const res = await withTimeout(
         signIn.create({ identifier: email.trim(), password } as { identifier: string; password: string }),
@@ -114,193 +114,184 @@ export default function SignInScreen() {
           SIGN_IN_TIMEOUT_MS,
           "Password setActive"
         );
-        console.log("[auth-mobile] password_sign_in_success");
       } else {
-        console.warn("[auth-mobile] password_sign_in_missing_session");
         setError("Sign-in did not create a session. Please try again.");
       }
     } catch (e: unknown) {
-      console.error("[auth-mobile] password_sign_in_error", e);
-      setError(getClerkErrorMessage(e, "Sign in failed"));
+      const msg = getClerkErrorMessage(e, "Sign in failed");
+      if (msg.toLowerCase().includes("already signed in")) {
+        router.replace("/(tabs)");
+        return;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const returnToAppUrl = `${API_URL.replace(/\/$/, "")}/auth/return-to-app`;
-  const webLoginUrl = `${API_URL.replace(/\/$/, "")}/login?redirect_url=${encodeURIComponent(returnToAppUrl)}`;
+  const webLoginUrl = `${API_URL.replace(/\/$/, "")}/login?redirect_url=${encodeURIComponent(`${API_URL.replace(/\/$/, "")}/auth/return-to-app`)}`;
   const formDisabled = !isLoaded;
-  // Allow Sign in button when user has entered credentials — handleSignIn handles !isLoaded
   const canAttemptSignIn = email.trim().length > 0 && password.length > 0;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <Text style={styles.title}>Coconut</Text>
-      <Text style={styles.subtitle}>Sign in to continue</Text>
-
-      {/* Always-available escape: Clerk SignIn can stay loading indefinitely on some devices */}
-      <TouchableOpacity
-        onPress={() => Linking.openURL(webLoginUrl)}
-        style={{
-          backgroundColor: "#3D8E62",
-          paddingVertical: 14,
-          paddingHorizontal: 24,
-          borderRadius: 12,
-          marginBottom: 20,
-        }}
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <Text style={{ color: "#fff", fontWeight: "600", fontSize: 16, textAlign: "center" }}>
-          Open login in browser
-        </Text>
-      </TouchableOpacity>
-      <Text style={{ color: "#9CA3AF", fontSize: 12, textAlign: "center", marginBottom: 16 }}>
-        Or sign in below
-      </Text>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Brand */}
+          <View style={styles.brand}>
+            <Text style={styles.logo}>🥥</Text>
+            <Text style={styles.title}>Coconut</Text>
+            <Text style={styles.subtitle}>Sign in to your account</Text>
+          </View>
 
-      {clerkStuckHint && !isLoaded && (
-        <Text style={{ color: "#B45309", fontSize: 12, textAlign: "center", marginBottom: 16, paddingHorizontal: 16 }}>
-          Auth is loading slowly. Try &quot;Open login in browser&quot; above, or check your network connection.
-        </Text>
-      )}
+          {/* Primary: Google */}
+          {(Platform.OS === "ios" || Platform.OS === "android") && (
+            <TouchableOpacity
+              style={[styles.googleBtn, (googleLoading || formDisabled) && styles.btnDisabled]}
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading || formDisabled}
+            >
+              {googleLoading ? (
+                <ActivityIndicator size="small" color="#5F6368" />
+              ) : (
+                <>
+                  <Text style={styles.googleIcon}>G</Text>
+                  <Text style={styles.googleText}>Continue with Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
-      {(Platform.OS === "ios" || Platform.OS === "android") && (
-        <>
-          <TouchableOpacity
-            style={[styles.googleButton, (googleLoading || formDisabled) && styles.buttonDisabled]}
-            onPress={handleGoogleSignIn}
-            disabled={googleLoading || formDisabled}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            )}
-          </TouchableOpacity>
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>or</Text>
             <View style={styles.dividerLine} />
           </View>
-        </>
-      )}
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="password"
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TouchableOpacity
-        style={[styles.button, (loading || (formDisabled && !canAttemptSignIn)) && styles.buttonDisabled]}
-        onPress={handleSignIn}
-        disabled={loading || (!canAttemptSignIn && formDisabled)}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.linkButton}
-        onPress={() => router.replace("/(auth)/sign-up")}
-      >
-        <Text style={styles.linkText}>
-          Don&apos;t have an account? Sign up
-        </Text>
-      </TouchableOpacity>
-    </KeyboardAvoidingView>
+
+          {/* Email / Password */}
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#9CA3AF"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              editable={!formDisabled}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#9CA3AF"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="password"
+              editable={!formDisabled}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {clerkStuckHint && !isLoaded && (
+              <Text style={styles.hint}>
+                Auth is loading slowly. Try the browser option below.
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.primaryBtn, (loading || (formDisabled && !canAttemptSignIn)) && styles.btnDisabled]}
+              onPress={handleSignIn}
+              disabled={loading || (!canAttemptSignIn && formDisabled)}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Sign in</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Sign up link */}
+          <Pressable
+            style={styles.swapBtn}
+            onPress={() => router.replace("/(auth)/sign-up")}
+          >
+            <Text style={styles.swapText}>Don’t have an account? </Text>
+            <Text style={styles.swapLink}>Sign up</Text>
+          </Pressable>
+
+          {/* Browser fallback */}
+          <Pressable
+            style={styles.browserBtn}
+            onPress={() => Linking.openURL(webLoginUrl)}
+          >
+            <Text style={styles.browserText}>Open login in browser</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: "#F7FAF8",
-    justifyContent: "center",
+  safe: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 48,
+    paddingBottom: 32,
+    minHeight: "100%",
   },
+  brand: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logo: { fontSize: 48, marginBottom: 12 },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
-    color: "#1F2937",
-    textAlign: "center",
-    marginBottom: 8,
+    color: "#111827",
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 24,
+    marginTop: 6,
   },
-  input: {
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
     backgroundColor: "#fff",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#E5E7EB",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    marginBottom: 12,
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
   },
-  error: {
-    color: "#DC2626",
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  button: {
-    backgroundColor: "#3D8E62",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
+  googleIcon: {
+    fontSize: 18,
     fontWeight: "600",
+    color: "#4285F4",
   },
-  linkButton: {
-    marginTop: 16,
-    alignSelf: "center",
-  },
-  linkText: {
-    color: "#3D8E62",
-    fontSize: 14,
+  googleText: {
+    fontSize: 16,
     fontWeight: "500",
-  },
-  googleButton: {
-    backgroundColor: "#4285F4",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  googleButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#374151",
   },
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 16,
+    marginVertical: 28,
   },
   dividerLine: {
     flex: 1,
@@ -308,8 +299,59 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5E7EB",
   },
   dividerText: {
-    marginHorizontal: 12,
-    color: "#6B7280",
+    marginHorizontal: 16,
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  form: { gap: 12 },
+  input: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#111827",
+  },
+  error: {
     fontSize: 14,
+    color: "#DC2626",
+    marginTop: 4,
+  },
+  hint: {
+    fontSize: 13,
+    color: "#B45309",
+    marginTop: 4,
+  },
+  primaryBtn: {
+    backgroundColor: "#3D8E62",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  primaryBtnText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  btnDisabled: { opacity: 0.6 },
+  swapBtn: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 28,
+  },
+  swapText: { fontSize: 15, color: "#6B7280" },
+  swapLink: { fontSize: 15, fontWeight: "600", color: "#3D8E62" },
+  browserBtn: {
+    marginTop: 24,
+    alignSelf: "center",
+  },
+  browserText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    textDecorationLine: "underline",
   },
 });

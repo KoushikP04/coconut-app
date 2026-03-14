@@ -11,14 +11,24 @@ function unauthResponse() {
   });
 }
 
-/** Clerk has a race: getToken() can return null right after isSignedIn/setActive (e.g. auth handoff). Retry generously. */
+/** Clerk has a race: getToken() can return null or throw (e.g. clerk_offline). Retry generously. */
 async function getTokenWithRetry(
   getToken: (opts?: { skipCache?: boolean }) => Promise<string | null>,
   maxAttempts = 14
 ): Promise<string | null> {
   for (let i = 0; i < maxAttempts; i++) {
-    const token = await getToken({ skipCache: i > 0 });
-    if (token) return token;
+    try {
+      const token = await getToken({ skipCache: i > 0 });
+      if (token) return token;
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? "";
+      const isOffline = /offline|network|clerk_offline|disconnected/i.test(msg);
+      if (isOffline && i < maxAttempts - 1) {
+        await new Promise((r) => setTimeout(r, 600 + 300 * i));
+        continue;
+      }
+      console.warn("[api] getToken error:", msg);
+    }
     if (i < maxAttempts - 1) {
       await new Promise((r) => setTimeout(r, 400 + 200 * i));
     }
@@ -40,7 +50,6 @@ export function useApiFetch() {
       if (SKIP_AUTH) return unauthResponse();
 
       const { isLoaded: loaded, isSignedIn: signedIn, getToken: gt } = ref.current;
-      console.log(`[apiFetch] ${path} loaded=${loaded} signedIn=${signedIn}`);
       if (loaded && !signedIn) return unauthResponse();
 
       const token = await getTokenWithRetry(gt);
@@ -79,7 +88,58 @@ export function useApiFetch() {
       } else {
         body = undefined;
       }
-      return fetch(url, { ...opts, headers, body });
+
+      const logInput = () => {
+        const safeBody =
+          opts.body && typeof opts.body === "object" && !(opts.body instanceof FormData)
+            ? JSON.stringify(opts.body)
+            : opts.body instanceof FormData
+              ? "[FormData]"
+              : undefined;
+        console.log(`[api] → ${(opts.method ?? "GET").toUpperCase()} ${path}`, safeBody ? { body: safeBody } : "");
+      };
+      logInput();
+
+      let response: Response;
+      try {
+        response = await fetch(url, { ...opts, headers, body });
+      } catch (e) {
+        const msg = (e instanceof Error ? e.message : String(e)) || "Network request failed";
+        console.warn(`[api] fetch failed: ${path}`, msg);
+        return new Response(
+          JSON.stringify({ error: "Network request failed. Check your connection and retry." }),
+          { status: 503, statusText: msg, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      let responseText: string;
+      try {
+        responseText = await response.text();
+      } catch (e) {
+        const msg = (e instanceof Error ? e.message : String(e)) || "Failed to read response";
+        console.warn(`[api] response read failed: ${path}`, msg);
+        return new Response(
+          JSON.stringify({ error: "Network request failed. Check your connection and retry." }),
+          { status: 503, statusText: msg, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      const output = responseText.length > 500 ? `${responseText.slice(0, 500)}…` : responseText;
+      let parsed: unknown = output;
+      if (output && (output.startsWith("{") || output.startsWith("["))) {
+        try {
+          parsed = JSON.parse(output);
+        } catch {
+          parsed = output;
+        }
+      }
+      console.log(`[api] ← ${path} ${response.status}`, output ? parsed : "");
+
+      return new Response(responseText, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
     },
     []
   );
