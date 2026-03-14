@@ -253,7 +253,8 @@ export default function HomeScreen() {
   const openSettings = () => Linking.openURL(`${API_URL.replace(/\/$/, "")}/app/settings`);
 
   // Loading — show escape hatches FIRST; cached session can land us here, then API/token may hang
-  const webLoginUrl = `${API_URL.replace(/\/$/, "")}/login`;
+  const returnToAppUrl = `${API_URL.replace(/\/$/, "")}/auth/return-to-app`;
+  const webLoginUrl = `${API_URL.replace(/\/$/, "")}/login?redirect_url=${encodeURIComponent(returnToAppUrl)}`;
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -370,7 +371,7 @@ export default function HomeScreen() {
               {refreshing ? "Checking..." : "Just connected? Tap to refresh"}
             </Text>
           </TouchableOpacity>
-          {signOut && isSignedIn ? (
+          {isSignedIn ? (
             <TouchableOpacity
               style={styles.connectSignOutButton}
               onPress={async () => {

@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { StripeTerminalProvider } from "@stripe/stripe-terminal-react-native";
+import { AuthHandoffHandler } from "../components/AuthHandoffHandler";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
@@ -91,6 +92,7 @@ function AuthSwitch() {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="auth-handoff" options={{ headerShown: false }} />
       </Stack>
     );
   }
@@ -108,9 +110,10 @@ export default function RootLayout() {
   return (
     <ClerkProvider
       publishableKey={publishableKey ?? ""}
-      tokenCache={SKIP_AUTH || FORCE_SIGN_OUT_ON_LAUNCH ? undefined : tokenCache}
+      tokenCache={tokenCache}
     >
       <StatusBar style="auto" />
+      <AuthHandoffHandler />
       <AuthSwitch />
     </ClerkProvider>
   );

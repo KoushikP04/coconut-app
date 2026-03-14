@@ -10,7 +10,7 @@ import {
   Platform,
   Linking,
 } from "react-native";
-import { useSignIn } from "@clerk/expo";
+import { useSignIn } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 
@@ -49,6 +49,13 @@ export default function SignInScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [clerkStuckHint, setClerkStuckHint] = useState(false);
+
+  useEffect(() => {
+    if (isLoaded) return;
+    const t = setTimeout(() => setClerkStuckHint(true), 8000);
+    return () => clearTimeout(t);
+  }, [isLoaded]);
 
   const handleGoogleSignIn = async () => {
     if (Platform.OS !== "ios" && Platform.OS !== "android") return;
@@ -120,8 +127,11 @@ export default function SignInScreen() {
     }
   };
 
-  const webLoginUrl = `${API_URL.replace(/\/$/, "")}/login`;
+  const returnToAppUrl = `${API_URL.replace(/\/$/, "")}/auth/return-to-app`;
+  const webLoginUrl = `${API_URL.replace(/\/$/, "")}/login?redirect_url=${encodeURIComponent(returnToAppUrl)}`;
   const formDisabled = !isLoaded;
+  // Allow Sign in button when user has entered credentials — handleSignIn handles !isLoaded
+  const canAttemptSignIn = email.trim().length > 0 && password.length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -149,6 +159,12 @@ export default function SignInScreen() {
       <Text style={{ color: "#9CA3AF", fontSize: 12, textAlign: "center", marginBottom: 16 }}>
         Or sign in below
       </Text>
+
+      {clerkStuckHint && !isLoaded && (
+        <Text style={{ color: "#B45309", fontSize: 12, textAlign: "center", marginBottom: 16, paddingHorizontal: 16 }}>
+          Auth is loading slowly. Try &quot;Open login in browser&quot; above, or check your network connection.
+        </Text>
+      )}
 
       {(Platform.OS === "ios" || Platform.OS === "android") && (
         <>
@@ -189,9 +205,9 @@ export default function SignInScreen() {
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity
-        style={[styles.button, (loading || formDisabled) && styles.buttonDisabled]}
+        style={[styles.button, (loading || (formDisabled && !canAttemptSignIn)) && styles.buttonDisabled]}
         onPress={handleSignIn}
-        disabled={loading || formDisabled}
+        disabled={loading || (!canAttemptSignIn && formDisabled)}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />

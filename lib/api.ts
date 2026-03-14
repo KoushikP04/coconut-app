@@ -11,16 +11,16 @@ function unauthResponse() {
   });
 }
 
-/** Clerk has a race: getToken() can return null right after isSignedIn. Retry a few times. */
+/** Clerk has a race: getToken() can return null right after isSignedIn/setActive (e.g. auth handoff). Retry generously. */
 async function getTokenWithRetry(
   getToken: (opts?: { skipCache?: boolean }) => Promise<string | null>,
-  maxAttempts = 8
+  maxAttempts = 14
 ): Promise<string | null> {
   for (let i = 0; i < maxAttempts; i++) {
     const token = await getToken({ skipCache: i > 0 });
     if (token) return token;
     if (i < maxAttempts - 1) {
-      await new Promise((r) => setTimeout(r, 350 * (i + 1)));
+      await new Promise((r) => setTimeout(r, 400 + 200 * i));
     }
   }
   return null;

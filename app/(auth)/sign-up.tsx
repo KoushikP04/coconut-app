@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useSignUp } from "@clerk/expo";
+import { useSignUp } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 
@@ -89,13 +89,8 @@ export default function SignUpScreen() {
     }
   };
 
-  if (!isLoaded) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#3D8E62" />
-      </View>
-    );
-  }
+  // When Clerk isn't loaded, show form with disabled state (like sign-in) instead of blocking.
+  const formDisabled = !isLoaded;
 
   return (
     <KeyboardAvoidingView
@@ -107,9 +102,9 @@ export default function SignUpScreen() {
       {(Platform.OS === "ios" || Platform.OS === "android") && (
         <>
           <TouchableOpacity
-            style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
+            style={[styles.googleButton, (googleLoading || formDisabled) && styles.buttonDisabled]}
             onPress={handleGoogleSignUp}
-            disabled={googleLoading}
+            disabled={googleLoading || formDisabled}
           >
             {googleLoading ? (
               <ActivityIndicator color="#fff" />
@@ -158,9 +153,9 @@ export default function SignUpScreen() {
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
+        style={[styles.button, (loading || formDisabled) && styles.buttonDisabled]}
         onPress={pendingVerification ? handleVerify : handleSignUp}
-        disabled={loading || (pendingVerification ? !code : false)}
+        disabled={loading || formDisabled || (pendingVerification ? !code : false)}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />

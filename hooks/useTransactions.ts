@@ -41,12 +41,12 @@ export function useTransactions() {
         if (cancelled) return null;
         console.log(`[useTransactions] plaid/status → ${r.status}`);
         if (r.status === 425) {
-          if (transientRetryCount.current < 8) {
+          if (transientRetryCount.current < 14) {
             transientRetryCount.current += 1;
-            console.log(`[useTransactions] 425 retry ${transientRetryCount.current}/8`);
+            console.log(`[useTransactions] 425 retry ${transientRetryCount.current}/14`);
             setTimeout(() => {
               if (!cancelled) fetchData(true);
-            }, 800);
+            }, 600);
             return null;
           }
           console.log("[useTransactions] 425 max retries, setting loading=false");
