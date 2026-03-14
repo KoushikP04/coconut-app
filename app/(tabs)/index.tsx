@@ -23,6 +23,7 @@ import { useSubscriptions } from "../../hooks/useSubscriptions";
 import { useGroupsSummary } from "../../hooks/useGroups";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
+const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
 
 const MERCHANT_COLORS = [
   "#E50914", "#1DB954", "#00674B", "#FF9900", "#003366", "#7BB848",
@@ -130,22 +131,20 @@ export default function HomeScreen() {
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [showFabMenu, setShowFabMenu] = useState(false);
-  const [loadingTooLong, setLoadingTooLong] = useState(false);
   const isFocused = useIsFocused();
   const prevFocused = useRef(false);
 
   useEffect(() => {
-    if (!isFocused) setShowFabMenu(false);
-  }, [isFocused]);
+    console.log("[HomeScreen] mounted loading=", loading, "linked=", linked);
+  }, []);
 
   useEffect(() => {
-    if (!loading) {
-      setLoadingTooLong(false);
-      return;
-    }
-    const timer = setTimeout(() => setLoadingTooLong(true), 9000);
-    return () => clearTimeout(timer);
-  }, [loading]);
+    console.log("[HomeScreen] loading=", loading, "linked=", linked);
+  }, [loading, linked]);
+
+  useEffect(() => {
+    if (!isFocused) setShowFabMenu(false);
+  }, [isFocused]);
 
   // Refetch when returning to this tab (e.g. from connected screen after bank link)
   useEffect(() => {
@@ -206,8 +205,8 @@ export default function HomeScreen() {
     }
   };
 
-  // Auto-redirect to sign-up when auth is loaded but user is not signed in
-  if (authLoaded && !isSignedIn) {
+  // Auto-redirect to sign-up when auth is loaded but user is not signed in (skip when SKIP_AUTH)
+  if (!SKIP_AUTH && authLoaded && !isSignedIn) {
     return <Redirect href="/(auth)/sign-up" />;
   }
 
@@ -265,46 +264,13 @@ export default function HomeScreen() {
     }
   };
 
-  if (loading && !loadingTooLong) {
-    return (
-      <View style={[styles.container, styles.center, { padding: 24 }]}>
-        <ActivityIndicator size="large" color="#3D8E62" />
-        <Text style={styles.loadingText}>Loading...</Text>
-        <TouchableOpacity
-          onPress={handleSignOut}
-          style={{
-            marginTop: 24,
-            paddingVertical: 14,
-            paddingHorizontal: 32,
-            borderRadius: 12,
-            borderWidth: 2,
-            borderColor: "#3D8E62",
-          }}
-        >
-          <Text style={{ color: "#3D8E62", fontWeight: "700", fontSize: 17 }}>Sign out</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => Linking.openURL(webLoginUrl)}
-          style={{
-            marginTop: 16,
-            backgroundColor: "#3D8E62",
-            paddingVertical: 16,
-            paddingHorizontal: 32,
-            borderRadius: 12,
-          }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 17 }}>Open login in browser</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (loading && loadingTooLong) {
+  // Never show a full-screen spinner — show Connect UI with sign out / refresh options
+  if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={[styles.connectCard, { padding: 24 }]}>
           <Ionicons name="time-outline" size={44} color="#3D8E62" />
-          <Text style={styles.connectTitle}>Still loading</Text>
+          <Text style={styles.connectTitle}>Checking status…</Text>
           <Text style={styles.connectSubtitle}>
             Tap below to sign out or open the web app.
           </Text>
@@ -322,10 +288,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.connectRefreshButton}
-            onPress={() => {
-              setLoadingTooLong(false);
-              refetch(false);
-            }}
+            onPress={() => refetch(false)}
           >
             <Ionicons name="refresh" size={16} color="#3D8E62" />
             <Text style={styles.connectRefreshText}>Retry</Text>

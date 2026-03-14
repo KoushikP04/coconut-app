@@ -29,8 +29,9 @@ export function useTransactions() {
 
   const fetchData = useCallback((silent = false): Promise<void> => {
     let cancelled = false;
-    setStatus("ok");
     const isFirstLoad = !hasShownInitialLoad.current;
+    console.log(`[useTransactions] fetchData started silent=${silent} isFirstLoad=${isFirstLoad}`);
+    setStatus("ok");
     if (!silent && isFirstLoad) setLoading(true);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -38,15 +39,17 @@ export function useTransactions() {
       .then((r) => {
         clearTimeout(timeout);
         if (cancelled) return null;
+        console.log(`[useTransactions] plaid/status → ${r.status}`);
         if (r.status === 425) {
-          // Clerk token warming up: retry silently a few times instead of showing "Connect bank".
           if (transientRetryCount.current < 8) {
             transientRetryCount.current += 1;
+            console.log(`[useTransactions] 425 retry ${transientRetryCount.current}/8`);
             setTimeout(() => {
               if (!cancelled) fetchData(true);
             }, 800);
             return null;
           }
+          console.log("[useTransactions] 425 max retries, setting loading=false");
           setLoading(false);
           return null;
         }
@@ -66,10 +69,12 @@ export function useTransactions() {
       .then((data) => {
         if (cancelled || !data) return null;
         if (!data.linked) {
+          console.log("[useTransactions] not linked, loading=false");
           setStatus("not_linked");
           setLoading(false);
           return null;
         }
+        console.log("[useTransactions] linked! fetching transactions");
         setLinked(true);
         return apiFetch("/api/plaid/transactions");
       })

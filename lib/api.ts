@@ -1,7 +1,15 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useAuth } from "@clerk/expo";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
+const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
+
+function unauthResponse() {
+  return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    status: 401,
+    headers: { "Content-Type": "application/json", "X-Coconut-Auth": "signed-out" },
+  });
+}
 
 /** Clerk has a race: getToken() can return null right after isSignedIn. Retry a few times. */
 async function getTokenWithRetry(
@@ -20,41 +28,24 @@ async function getTokenWithRetry(
 
 export function useApiFetch() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const ref = useRef({ getToken, isLoaded, isSignedIn });
+  ref.current = { getToken, isLoaded, isSignedIn };
 
   return useCallback(
     async (
       path: string,
       opts: Omit<RequestInit, "body"> & { body?: object | FormData } = {}
     ) => {
-      // Signed-out state: return synthetic 401 (no network request).
-      if (isLoaded && !isSignedIn) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          {
-            status: 401,
-            headers: {
-              "Content-Type": "application/json",
-              "X-Coconut-Auth": "signed-out",
-            },
-          }
-        );
-      }
+      // SKIP_AUTH: never wait for token, return 401 so UI shows Connect state immediately
+      if (SKIP_AUTH) return unauthResponse();
 
-      const token = await getTokenWithRetry(getToken);
+      const { isLoaded: loaded, isSignedIn: signedIn, getToken: gt } = ref.current;
+      console.log(`[apiFetch] ${path} loaded=${loaded} signedIn=${signedIn}`);
+      if (loaded && !signedIn) return unauthResponse();
+
+      const token = await getTokenWithRetry(gt);
       if (!token) {
-        // If auth is fully loaded and signed out, keep status semantics consistent.
-        if (isLoaded && !isSignedIn) {
-          return new Response(
-            JSON.stringify({ error: "Unauthorized" }),
-            {
-              status: 401,
-              headers: {
-                "Content-Type": "application/json",
-                "X-Coconut-Auth": "signed-out",
-              },
-            }
-          );
-        }
+        if (loaded && !signedIn) return unauthResponse();
         // Token race window: don't hit backend unauthenticated.
         return new Response(
           JSON.stringify({ error: "Session token unavailable" }),
@@ -90,7 +81,7 @@ export function useApiFetch() {
       }
       return fetch(url, { ...opts, headers, body });
     },
-    [getToken, isLoaded, isSignedIn]
+    []
   );
 }
 
