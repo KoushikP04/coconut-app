@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Redirect } from "expo-router";
 import {
   View,
@@ -27,6 +27,16 @@ import { useGroupsSummary } from "../../hooks/useGroups";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
 const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
+
+const SEARCH_CHIPS = [
+  { label: "This month", q: "how much did I spend this month" },
+  { label: "Food", q: "food spending last month" },
+  { label: "Biggest expense", q: "what's my biggest expense this month" },
+  { label: "Subscriptions", q: "my subscriptions" },
+  { label: "Unusual spending", q: "unusual spending this month" },
+  { label: "Coffee", q: "how much on coffee" },
+  { label: "Trending up?", q: "is my spending going up" },
+] as const;
 
 const MERCHANT_COLORS = [
   "#E50914", "#1DB954", "#00674B", "#FF9900", "#003366", "#7BB848",
@@ -109,30 +119,22 @@ function MerchantLogo({ name, color, size = "sm" }: { name: string; color: strin
   );
 }
 
-/** P2P sends (Zelle, Venmo, Cash App TRANSFER_OUT) should display as outflow (-) even if amount is positive. */
+/** TRANSFER_OUT is always outflow — Zelle, Venmo, wire, card payments, everything. */
 function isDisplayAsOutflow(tx: Transaction): boolean {
   const cat = (tx.category ?? "").toUpperCase();
+  if (cat.includes("TRANSFER") && cat.includes("OUT")) return true;
   const text = `${tx.merchant ?? ""} ${tx.rawDescription ?? ""}`.toLowerCase();
-  const isTransferOut = cat.includes("TRANSFER") && cat.includes("OUT");
-  const looksLikeP2PSend = /zelle|venmo|cash\s*app/i.test(text);
-  if (isTransferOut && looksLikeP2PSend && tx.amount > 0) return true;
-  // Rideshare/transportation (Uber, Lyft) are always expenses — never show green even if amount is positive
   const isTransport = cat.includes("TRANSPORTATION") || /uber|lyft|rideshare|taxi/i.test(text);
   return !!(isTransport && tx.amount > 0);
 }
 
-/** Credit card payments (TRANSFER_OUT reducing debt) display as positive/green like income. */
+/** Only TRANSFER_IN and actual positive amounts (refunds, deposits) are inflow. */
 function isDisplayAsInflow(tx: Transaction): boolean {
   if (isDisplayAsOutflow(tx)) return false;
-  if (tx.amount > 0) return true;
   const cat = (tx.category ?? "").toUpperCase();
-  const merchant = (tx.merchant ?? tx.rawDescription ?? "").toLowerCase();
-  const isTransferOut = cat.includes("TRANSFER") && cat.includes("OUT");
-  const raw = (tx.rawDescription ?? "").toLowerCase();
-  const looksLikeCardPayment =
-    /credit\s*card|card\s*payment|payment\s*to|autopay|pay\s*\d|payment\s*[- ]?credit|^payment$/i.test(merchant) ||
-    /credit\s*card|card\s*payment|payment\s*to|autopay|payment\s*[- ]?credit/i.test(raw);
-  return !!(isTransferOut && looksLikeCardPayment);
+  if (cat.includes("TRANSFER") && cat.includes("IN")) return true;
+  if (cat.includes("INCOME")) return true;
+  return tx.amount > 0 && !cat.includes("TRANSFER");
 }
 
 function formatAmountDisplay(tx: Transaction): { text: string; isInflow: boolean } {
@@ -217,7 +219,7 @@ function BankTag({ tx }: { tx: Transaction }) {
 }
 
 
-function TransactionRow({ tx, onPress }: { tx: Transaction; onPress?: () => void }) {
+const TransactionRow = React.memo(function TransactionRow({ tx, onPress }: { tx: Transaction; onPress?: () => void }) {
   const { text: amountText, isInflow } = formatAmountDisplay(tx);
   return (
     <Pressable style={styles.txRow} onPress={onPress}>
@@ -237,7 +239,7 @@ function TransactionRow({ tx, onPress }: { tx: Transaction; onPress?: () => void
       </View>
     </Pressable>
   );
-}
+});
 
 /** Monthly spend = expenses only (amount < 0), matching web dashboard. */
 function deriveMonthlySpend(transactions: Transaction[]): number {
@@ -348,24 +350,27 @@ export default function HomeScreen() {
   const prevFocused = useRef(false);
 
   useEffect(() => {
-    console.log("[HomeScreen] mounted loading=", loading, "linked=", linked);
-  }, []);
-
-  useEffect(() => {
-    console.log("[HomeScreen] loading=", loading, "linked=", linked);
-  }, [loading, linked]);
-
-  useEffect(() => {
     if (!isFocused) setShowFabMenu(false);
   }, [isFocused]);
 
-  // Refetch when returning to this tab (e.g. from connected screen after bank link)
+  // AppState listener in useTransactions handles refetch on resume.
+  // Only refetch on first focus (after bank connect flow).
+  const hasFetchedOnce = useRef(false);
   useEffect(() => {
-    if (isFocused && !prevFocused.current) {
+    if (isFocused && !hasFetchedOnce.current) {
+      hasFetchedOnce.current = true;
+    } else if (isFocused && !prevFocused.current) {
       refetch(true);
     }
     prevFocused.current = isFocused;
   }, [isFocused, refetch]);
+
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    const t = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+    return user?.firstName ? `Good ${t}, ${user.firstName}` : `Good ${t}`;
+  }, [user?.firstName]);
+  const dateLabel = useMemo(() => new Date().toLocaleString("en", { weekday: "long", month: "long", day: "numeric" }), []);
 
   const monthlySpend = useMemo(() => deriveMonthlySpend(transactions), [transactions]);
   const subsTotal = useMemo(
@@ -378,6 +383,8 @@ export default function HomeScreen() {
 
   const [hasSearchedSemantic, setHasSearchedSemantic] = useState(false);
   const [semanticAnswer, setSemanticAnswer] = useState<string>("");
+
+  const onPressTx = useCallback((tx: Transaction) => setSelectedTx(tx), []);
 
   const displayTransactions = useMemo(() => {
     let list: Transaction[];
@@ -395,6 +402,15 @@ export default function HomeScreen() {
       return b.date.localeCompare(a.date);
     });
   }, [searchMode, transactions, semanticResults, searchQuery, hasSearchedSemantic]);
+
+  const { pendingTxs, postedTxs } = useMemo(() => {
+    const pendingTxs: Transaction[] = [];
+    const postedTxs: Transaction[] = [];
+    for (const tx of displayTransactions) {
+      (tx.isPending ? pendingTxs : postedTxs).push(tx);
+    }
+    return { pendingTxs, postedTxs };
+  }, [displayTransactions]);
 
   const runSemanticSearch = async () => {
     const q = searchQuery.trim();
@@ -625,12 +641,8 @@ export default function HomeScreen() {
         {/* Greeting */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>
-              Good {new Date().getHours() < 12 ? "morning" : "afternoon"}
-            </Text>
-            <Text style={styles.subGreeting}>
-              {new Date().toLocaleString("en", { month: "long", year: "numeric" })}
-            </Text>
+            <Text style={styles.greeting}>{greeting}</Text>
+            <Text style={styles.subGreeting}>{dateLabel}</Text>
           </View>
           <TouchableOpacity onPress={openSettings} style={styles.settingsBtn} hitSlop={12}>
             <Ionicons name="settings-outline" size={22} color="#6B7280" />
@@ -733,10 +745,25 @@ export default function HomeScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-          {searchMode === "semantic" && (
-            <Text style={styles.searchHint}>
-              Try: "coffee last week", "dinner with Alex" - tap search icon
-            </Text>
+          {searchMode === "semantic" && !searchQuery.trim() && (
+            <>
+              <Text style={styles.searchHint}>Try a question about your spending:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScrollContent}>
+                {SEARCH_CHIPS.map((chip) => (
+                  <TouchableOpacity
+                    key={chip.q}
+                    style={styles.searchChip}
+                    onPress={() => { setSearchQuery(chip.q); setTimeout(runSemanticSearch, 100); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.searchChipText}>{chip.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>
+          )}
+          {searchMode === "semantic" && searchQuery.trim() && (
+            <Text style={styles.searchHint}>Tap the search icon or press return</Text>
           )}
         </View>
 
@@ -775,36 +802,24 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {displayTransactions.filter((tx) => tx.isPending).length > 0 && (
+            {pendingTxs.length > 0 && (
               <View style={styles.txSection}>
                 <View style={styles.txSectionHeader}>
                   <Text style={styles.txSectionTitle}>Pending</Text>
                 </View>
-                {displayTransactions
-                  .filter((tx) => tx.isPending)
-                  .map((tx) => (
-                    <TransactionRow
-                      key={tx.id}
-                      tx={tx}
-                      onPress={() => setSelectedTx(tx)}
-                    />
-                  ))}
+                {pendingTxs.map((tx) => (
+                  <TransactionRow key={tx.id} tx={tx} onPress={() => onPressTx(tx)} />
+                ))}
               </View>
             )}
-            {displayTransactions.filter((tx) => !tx.isPending).length > 0 && (
+            {postedTxs.length > 0 && (
               <View style={styles.txSection}>
                 <View style={[styles.txSectionHeader, styles.txSectionHeaderPosted]}>
                   <Text style={styles.txSectionTitlePosted}>Posted</Text>
                 </View>
-                {displayTransactions
-                  .filter((tx) => !tx.isPending)
-                  .map((tx) => (
-                    <TransactionRow
-                      key={tx.id}
-                      tx={tx}
-                      onPress={() => setSelectedTx(tx)}
-                    />
-                  ))}
+                {postedTxs.map((tx) => (
+                  <TransactionRow key={tx.id} tx={tx} onPress={() => onPressTx(tx)} />
+                ))}
               </View>
             )}
           </>
@@ -930,6 +945,9 @@ const styles = StyleSheet.create({
   modeChipActive: { backgroundColor: "#3D8E62" },
   modeChipText: { fontSize: 13, fontWeight: "500", color: "#6B7280" },
   modeChipTextActive: { color: "#fff" },
+  chipScrollContent: { gap: 8, paddingVertical: 6 },
+  searchChip: { backgroundColor: "#EEF7F2", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  searchChipText: { fontSize: 13, fontWeight: "600", color: "#3D8E62" },
   searchHint: {
     fontSize: 12,
     color: "#9CA3AF",
