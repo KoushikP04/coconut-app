@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import { router } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useApiFetch } from "../../lib/api";
 import {
   useGroupsSummary,
@@ -69,6 +70,15 @@ export default function SharedScreen() {
   const [requestingPayment, setRequestingPayment] = useState(false);
   const [recordingSettlement, setRecordingSettlement] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const isFocused = useIsFocused();
+  const prevFocused = useRef(false);
+
+  useEffect(() => {
+    if (isFocused && !prevFocused.current) {
+      refetch();
+    }
+    prevFocused.current = isFocused;
+  }, [isFocused, refetch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
