@@ -4,8 +4,10 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "NODE_OPTIONS='--disable-warning=DEP0169' expo start",
+    "start:device": "REACT_NATIVE_PACKAGER_HOSTNAME=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo localhost) CI=false NODE_OPTIONS='--disable-warning=DEP0169' expo start",
     "android": "NODE_OPTIONS='--disable-warning=DEP0169' expo run:android",
     "ios": "NODE_OPTIONS='--disable-warning=DEP0169' expo run:ios",
+    "ios:device": "REACT_NATIVE_PACKAGER_HOSTNAME=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo localhost) CI=false NODE_OPTIONS='--disable-warning=DEP0169' npx expo run:ios",
     "web": "NODE_OPTIONS='--disable-warning=DEP0169' expo start --web"
   },
   "dependencies": {
@@ -20,6 +22,7 @@
     "expo-crypto": "~55.0.9",
     "expo-dev-client": "^55.0.11",
     "expo-document-picker": "^55.0.8",
+    "expo-haptics": "~55.0.8",
     "expo-image-picker": "^55.0.11",
     "expo-linking": "^55.0.7",
     "expo-router": "^55.0.4",

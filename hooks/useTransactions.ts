@@ -14,6 +14,11 @@ export interface Transaction {
   isRecurring?: boolean;
   hasSplitSuggestion?: boolean;
   merchantColor: string;
+  isPending?: boolean;
+  /** Last 4 of account for bank tag, e.g. "1234" */
+  accountMask?: string | null;
+  /** Account name for bank tag, e.g. "Chase Checking" */
+  accountName?: string | null;
 }
 
 export type PlaidStatus = "ok" | "unauthorized" | "not_linked";
@@ -26,9 +31,9 @@ export function useTransactions() {
   const [status, setStatus] = useState<PlaidStatus>("ok");
   const hasShownInitialLoad = useRef(false);
   const transientRetryCount = useRef(0);
-  const cancelledRef = useRef(false);
 
   const fetchData = useCallback((silent = false): Promise<void> => {
+    let cancelled = false;
     const isFirstLoad = !hasShownInitialLoad.current;
     console.log(`[useTransactions] fetchData started silent=${silent} isFirstLoad=${isFirstLoad}`);
     setStatus("ok");
@@ -37,15 +42,16 @@ export function useTransactions() {
     const timeout = setTimeout(() => controller.abort(), 10000);
     return apiFetch("/api/plaid/status", { signal: controller.signal })
       .then((r) => {
-        if (cancelledRef.current) return null;
+        clearTimeout(timeout);
+        if (cancelled) return null;
         console.log(`[useTransactions] plaid/status → ${r.status}`);
         if (r.status === 425) {
-          if (transientRetryCount.current < 8) {
+          if (transientRetryCount.current < 14) {
             transientRetryCount.current += 1;
-            console.log(`[useTransactions] 425 retry ${transientRetryCount.current}/8`);
+            console.log(`[useTransactions] 425 retry ${transientRetryCount.current}/14`);
             setTimeout(() => {
-              if (!cancelledRef.current) fetchData(true);
-            }, 800);
+              if (!cancelled) fetchData(true);
+            }, 600);
             return null;
           }
           console.log("[useTransactions] 425 max retries, setting loading=false");
@@ -66,29 +72,27 @@ export function useTransactions() {
         return r.json();
       })
       .then((data) => {
-        if (cancelledRef.current || !data) return null;
+        if (cancelled || !data) return null;
         if (!data.linked) {
           console.log("[useTransactions] not linked, loading=false");
-          setLinked(false);
-          setTransactions([]);
           setStatus("not_linked");
           setLoading(false);
           return null;
         }
         console.log("[useTransactions] linked! fetching transactions");
         setLinked(true);
-        return apiFetch("/api/plaid/transactions", { signal: controller.signal });
+        return apiFetch("/api/plaid/transactions");
       })
       .then((r) => {
-        if (cancelledRef.current || !r || !r.ok) return null;
+        if (cancelled || !r || !r.ok) return null;
         return r.json();
       })
       .then((data) => {
-        if (cancelledRef.current) return;
+        if (cancelled) return;
         if (Array.isArray(data)) setTransactions(data as Transaction[]);
       })
       .finally(() => {
-        if (!cancelledRef.current) {
+        if (!cancelled) {
           clearTimeout(timeout);
           hasShownInitialLoad.current = true;
           setLoading(false);
@@ -96,14 +100,12 @@ export function useTransactions() {
       })
       .catch(() => {
         clearTimeout(timeout);
-        if (!cancelledRef.current) setLoading(false);
+        if (!cancelled) setLoading(false);
       });
   }, [apiFetch]);
 
   useEffect(() => {
-    cancelledRef.current = false;
     fetchData();
-    return () => { cancelledRef.current = true; };
   }, [fetchData]);
 
   // Refetch when app returns from background (e.g. after connect flow in browser)

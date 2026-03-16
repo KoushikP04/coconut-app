@@ -9,15 +9,16 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import { useStripeTerminal } from "@stripe/stripe-terminal-react-native";
+import { StripeTerminalProvider, useStripeTerminal } from "@stripe/stripe-terminal-react-native";
 import type { Reader } from "@stripe/stripe-terminal-react-native";
 import { ErrorCode } from "@stripe/stripe-terminal-react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useAuth } from "@clerk/expo";
 import { useApiFetch } from "../../lib/api";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 
-export default function PayScreen() {
+function PayScreenInner() {
   const params = useLocalSearchParams<{
     amount?: string;
     groupId?: string;
@@ -278,8 +279,10 @@ export default function PayScreen() {
       )}
 
       <Text style={styles.hint}>
-        Requires a development build (expo run:ios / expo run:android). iOS: iPhone XS or later.
-        Android: NFC device, API 26+.
+        Tap to Pay does not work in Expo Go. Run{" "}
+        <Text style={styles.hintCode}>expo run:ios</Text> or{" "}
+        <Text style={styles.hintCode}>expo run:android</Text> to build with native Stripe support.
+        {"\n"}iOS: iPhone XS or later. Android: NFC device, API 26+.
       </Text>
     </View>
   );
@@ -365,4 +368,40 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     lineHeight: 18,
   },
+  hintCode: {
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
 });
+
+export default function PayScreen() {
+  const { getToken } = useAuth();
+
+  const fetchConnectionToken = useCallback(async () => {
+    let token: string | null = null;
+    for (let i = 0; i < 4; i++) {
+      token = await getToken({ skipCache: i > 0 });
+      if (token) break;
+      if (i < 3) await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+    }
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/stripe/terminal/connection-token`, {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to get connection token");
+    return data.secret;
+  }, [getToken]);
+
+  return (
+    <StripeTerminalProvider logLevel="error" tokenProvider={fetchConnectionToken}>
+      <PayScreenInner />
+    </StripeTerminalProvider>
+  );
+}

@@ -1,8 +1,10 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { DemoModeProvider } from "../../lib/demo-mode-context";
 
 export default function TabLayout() {
   return (
+    <DemoModeProvider>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#3D8E62",
@@ -50,11 +52,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="add-expense"
         options={{
           href: null,
         }}
       />
     </Tabs>
+    </DemoModeProvider>
   );
 }
