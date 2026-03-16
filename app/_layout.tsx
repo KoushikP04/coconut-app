@@ -92,7 +92,7 @@ function AuthSwitch() {
   }
 
   // Block tabs when: not loaded, not signed in, OR FORCE_SIGN_OUT + cached session (until signOut completes)
-  if (!isLoaded || !isSignedIn || (FORCE_SIGN_OUT_ON_LAUNCH && isSignedIn)) {
+  if (!isLoaded || !isSignedIn || (FORCE_SIGN_OUT_ON_LAUNCH && isSignedIn && !hasClearedSession.current)) {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
