@@ -86,8 +86,13 @@ export default function SharedScreen() {
 
   useEffect(() => {
     apiFetch("/api/plaid/status")
-      .then((r) => r.json())
-      .then((d) => setPlaidLinked(d.linked === true))
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((d) => {
+        if (d !== null) setPlaidLinked(d.linked === true);
+      })
       .catch(() => setPlaidLinked(false));
   }, [apiFetch]);
 
@@ -120,9 +125,9 @@ export default function SharedScreen() {
 
   if (loading && showOverview) {
     return (
-      <View style={styles.center}>
+      <SafeAreaView style={[styles.container, styles.center]} edges={["top"]}>
         <ActivityIndicator size="large" color="#3D8E62" />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -249,6 +254,7 @@ export default function SharedScreen() {
 
   if (selectedPersonKey && personDetail) {
     return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         style={styles.container}
         refreshControl={
@@ -331,6 +337,7 @@ export default function SharedScreen() {
           </View>
         )}
       </ScrollView>
+      </SafeAreaView>
     );
   }
 
