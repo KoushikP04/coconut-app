@@ -18,6 +18,7 @@ import { usePersonDetail } from "../../../hooks/useGroups";
 import { useDemoMode } from "../../../lib/demo-mode-context";
 import { useDemoData } from "../../../lib/demo-context";
 import { PersonSkeletonScreen, haptic } from "../../../components/ui";
+import { colors, font, fontSize, shadow, radii, space } from "../../../lib/theme";
 
 const MEMBER_COLORS = ["#3D8E62", "#4A6CF7", "#E8507A", "#F59E0B", "#10A37F", "#8B5CF6"];
 
@@ -131,7 +132,7 @@ export default function PersonScreen() {
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3D8E62" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         <View style={s.header}>
           <MemberAvatar name={detail.displayName} size={56} />
@@ -168,7 +169,7 @@ export default function PersonScreen() {
               </>
             )}
             <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={handleMarkPaid} disabled={recordingSettlement} activeOpacity={0.7}>
-              {recordingSettlement ? <ActivityIndicator size="small" color="#374151" /> : (
+              {recordingSettlement ? <ActivityIndicator size="small" color={colors.textSecondary} /> : (
                 <Text style={s.btnSecondaryText}>Mark paid</Text>
               )}
             </TouchableOpacity>
@@ -177,7 +178,7 @@ export default function PersonScreen() {
 
         {detail.balance === 0 && detail.activity.length > 0 && (
           <View style={s.settledBadge}>
-            <Ionicons name="checkmark-circle" size={20} color="#2D7A52" />
+            <Ionicons name="checkmark-circle" size={20} color={colors.primaryDark} />
             <Text style={s.settledText}>All settled up with {detail.displayName}</Text>
           </View>
         )}
@@ -209,37 +210,37 @@ export default function PersonScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7FAF8" },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 100 },
   header: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
   headerInfo: { flex: 1 },
-  headerName: { fontSize: 22, fontWeight: "700", color: "#1F2937" },
-  headerBalance: { fontSize: 15, fontWeight: "600", marginTop: 4 },
+  headerName: { fontSize: 22, fontWeight: "700", fontFamily: font.bold, color: colors.text },
+  headerBalance: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, marginTop: 4 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
-  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12 },
-  btnPrimary: { backgroundColor: "#3D8E62" },
-  btnTap: { backgroundColor: "#4A6CF7" },
-  btnSecondary: { borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff" },
-  btnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  btnSecondaryText: { color: "#374151", fontWeight: "500", fontSize: 14 },
-  settledBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#EEF7F2", padding: 14, borderRadius: 12, marginBottom: 24 },
-  settledText: { fontSize: 14, color: "#2D7A52", fontWeight: "600" },
-  section: { fontSize: 13, fontWeight: "700", color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
-  emptyText: { fontSize: 14, color: "#9CA3AF" },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden" },
+  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 18, borderRadius: radii.md },
+  btnPrimary: { backgroundColor: colors.primary },
+  btnTap: { backgroundColor: colors.blue },
+  btnSecondary: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  btnText: { color: "#fff", fontWeight: "600", fontFamily: font.semibold, fontSize: 14 },
+  btnSecondaryText: { color: colors.textSecondary, fontWeight: "500", fontFamily: font.medium, fontSize: 14 },
+  settledBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primaryLight, padding: 14, borderRadius: radii.md, marginBottom: 24 },
+  settledText: { fontSize: 14, color: colors.primaryDark, fontWeight: "600", fontFamily: font.semibold },
+  section: { fontSize: 13, fontWeight: "700", fontFamily: font.bold, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
+  emptyText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, overflow: "hidden", ...shadow.md },
   txRow: { flexDirection: "row", alignItems: "center", padding: 14 },
-  txBorder: { borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  txBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
   txInfo: { flex: 1 },
-  txMerchant: { fontSize: 15, fontWeight: "600", color: "#1F2937" },
-  txGroup: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
+  txMerchant: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.text },
+  txGroup: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
   txRight: { alignItems: "flex-end" },
-  txAmt: { fontSize: 15, fontWeight: "700" },
-  txTotal: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
+  txAmt: { fontSize: 15, fontWeight: "700", fontFamily: font.bold },
+  txTotal: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
   avatar: { justifyContent: "center", alignItems: "center" },
-  avatarText: { color: "#fff", fontWeight: "700" },
-  green: { color: "#059669" },
-  amber: { color: "#B45309" },
-  muted: { color: "#9CA3AF" },
+  avatarText: { color: "#fff", fontWeight: "700", fontFamily: font.bold },
+  green: { color: colors.green },
+  amber: { color: colors.amber },
+  muted: { color: colors.textMuted },
 });

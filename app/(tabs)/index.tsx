@@ -13,6 +13,7 @@ import {
   Modal,
   Image,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +25,10 @@ import { getMerchantLogoUrl } from "../../lib/merchant-logos";
 import { useTransactions, type Transaction } from "../../hooks/useTransactions";
 import { useSubscriptions } from "../../hooks/useSubscriptions";
 import { useGroupsSummary } from "../../hooks/useGroups";
+import { useInsights } from "../../hooks/useInsights";
+import { InsightsBanner } from "../../components/InsightsBanner";
+import { InsightsSwipeModal } from "../../components/InsightsSwipeModal";
+import { colors, font, fontSize as FS, shadow, radii, space, card, cardFlat, type as T } from "../../lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
 const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
@@ -335,17 +340,20 @@ export default function HomeScreen() {
   const { transactions, linked, loading, status, refetch } = useTransactions();
   const { subscriptions } = useSubscriptions();
   const { summary: groupsSummary } = useGroupsSummary();
+  const { insights, loading: insightsLoading, refetch: refetchInsights } = useInsights();
 
   const [searchMode, setSearchMode] = useState<SearchMode>("exact");
   const [searchQuery, setSearchQuery] = useState("");
   const [semanticResults, setSemanticResults] = useState<Transaction[] | null>(null);
   const [semanticSearching, setSemanticSearching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [showFabMenu, setShowFabMenu] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [showInsightsModal, setShowInsightsModal] = useState(false);
   const isFocused = useIsFocused();
   const prevFocused = useRef(false);
 
@@ -385,6 +393,12 @@ export default function HomeScreen() {
   const [semanticAnswer, setSemanticAnswer] = useState<string>("");
 
   const onPressTx = useCallback((tx: Transaction) => setSelectedTx(tx), []);
+
+  const onPullRefresh = useCallback(async () => {
+    setPullRefreshing(true);
+    await Promise.all([refetch(true), refetchInsights()]);
+    setPullRefreshing(false);
+  }, [refetch, refetchInsights]);
 
   const displayTransactions = useMemo(() => {
     let list: Transaction[];
@@ -637,6 +651,9 @@ export default function HomeScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={pullRefreshing} onRefresh={onPullRefresh} tintColor="#3D8E62" />
+        }
       >
         {/* Greeting */}
         <View style={styles.header}>
@@ -679,6 +696,13 @@ export default function HomeScreen() {
             <Text style={styles.panelLabel}>Shared</Text>
           </View>
         </View>
+
+        {/* Insights banner — between panels and search */}
+        <InsightsBanner
+          insights={insights}
+          loading={insightsLoading}
+          onSeeAll={() => setShowInsightsModal(true)}
+        />
 
         {/* Search */}
         <View style={styles.searchSection}>
@@ -845,6 +869,12 @@ export default function HomeScreen() {
         />
       )}
 
+      <InsightsSwipeModal
+        visible={showInsightsModal}
+        insights={insights}
+        onClose={() => setShowInsightsModal(false)}
+      />
+
       <Modal
         visible={showFabMenu}
         transparent
@@ -881,7 +911,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7FAF8" },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 100 },
@@ -891,8 +921,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 20,
   },
-  greeting: { fontSize: 22, fontWeight: "700", color: "#1F2937" },
-  subGreeting: { fontSize: 14, color: "#6B7280", marginTop: 2 },
+  greeting: { fontSize: 22, fontFamily: font.bold, color: colors.text },
+  subGreeting: { fontSize: 14, fontFamily: font.medium, color: colors.textTertiary, marginTop: 2 },
   settingsBtn: { padding: 4 },
   panels: {
     flexDirection: "row",
@@ -901,11 +931,10 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
     padding: 14,
-    borderWidth: 1,
-    borderColor: "#EEF7F2",
+    ...shadow.md,
   },
   panelIcon: {
     width: 36,
@@ -915,23 +944,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 8,
   },
-  panelValue: { fontSize: 17, fontWeight: "700", color: "#1F2937" },
-  panelValueGreen: { color: "#059669" },
-  panelValueAmber: { color: "#B45309" },
-  panelLabel: { fontSize: 11, color: "#6B7280", marginTop: 2 },
+  panelValue: { fontSize: 17, fontFamily: font.bold, color: colors.text },
+  panelValueGreen: { color: colors.green },
+  panelValueAmber: { color: colors.amber },
+  panelLabel: { fontSize: 11, fontFamily: font.medium, color: colors.textTertiary, marginTop: 2 },
   searchSection: { marginBottom: 20 },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 10,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
-  searchInput: { flex: 1, fontSize: 15, color: "#1F2937", padding: 0 },
+  searchInput: { flex: 1, fontSize: 15, fontFamily: font.regular, color: colors.text, padding: 0 },
   searchIconBtn: {
     padding: 6,
   },
@@ -939,31 +968,33 @@ const styles = StyleSheet.create({
   modeChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: "#E5E7EB",
+    borderRadius: radii["2xl"],
+    backgroundColor: colors.border,
   },
-  modeChipActive: { backgroundColor: "#3D8E62" },
-  modeChipText: { fontSize: 13, fontWeight: "500", color: "#6B7280" },
+  modeChipActive: { backgroundColor: colors.primary },
+  modeChipText: { fontSize: 13, fontFamily: font.medium, color: colors.textTertiary },
   modeChipTextActive: { color: "#fff" },
   chipScrollContent: { gap: 8, paddingVertical: 6 },
-  searchChip: { backgroundColor: "#EEF7F2", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-  searchChipText: { fontSize: 13, fontWeight: "600", color: "#3D8E62" },
+  searchChip: { backgroundColor: colors.primaryLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: radii["2xl"] },
+  searchChipText: { fontSize: 13, fontFamily: font.semibold, color: colors.primary },
   searchHint: {
     fontSize: 12,
-    color: "#9CA3AF",
+    fontFamily: font.regular,
+    color: colors.textMuted,
     marginTop: 6,
   },
   answerBanner: {
-    backgroundColor: "#EEF7F2",
-    borderRadius: 14,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "#D1EAE0",
+    borderColor: colors.primaryMuted,
     padding: 16,
     marginBottom: 16,
   },
   answerText: {
     fontSize: 15,
-    color: "#2D5A44",
+    fontFamily: font.regular,
+    color: colors.primaryDark,
     lineHeight: 22,
   },
   sectionHeader: {
@@ -972,69 +1003,68 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
     marginBottom: 12,
   },
-  sectionTitle: { fontSize: 14, fontWeight: "600", color: "#374151" },
-  sectionMeta: { fontSize: 12, color: "#9CA3AF" },
+  sectionTitle: { fontSize: 14, fontFamily: font.semibold, color: colors.textSecondary },
+  sectionMeta: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted },
   txSection: { marginBottom: 16 },
   txSectionHeader: {
-    backgroundColor: "#FFFBEB",
+    backgroundColor: colors.amberBg,
     borderBottomWidth: 1,
-    borderBottomColor: "#FDE68A",
+    borderBottomColor: colors.amberBorder,
     paddingVertical: 8,
     paddingHorizontal: 14,
     marginBottom: 4,
   },
   txSectionHeaderPosted: {
-    backgroundColor: "#F9FAFB",
-    borderBottomColor: "#F3F4F6",
+    backgroundColor: colors.surfaceSecondary,
+    borderBottomColor: colors.borderLight,
   },
-  txSectionTitle: { fontSize: 12, fontWeight: "600", color: "#92400E" },
-  txSectionTitlePosted: { fontSize: 12, fontWeight: "600", color: "#4B5563" },
+  txSectionTitle: { fontSize: 12, fontFamily: font.semibold, color: colors.amberDark },
+  txSectionTitlePosted: { fontSize: 12, fontFamily: font.semibold, color: colors.textSecondary },
   txRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: radii.md,
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    ...shadow.sm,
   },
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarLogo: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.borderLight,
     overflow: "hidden",
   },
   avatarImg: { width: 28, height: 28 },
   avatarImgLg: { width: 36, height: 36 },
-  avatarText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  avatarText: { color: "#fff", fontFamily: font.bold, fontSize: 14 },
   txInfo: { flex: 1, marginLeft: 12, minWidth: 0 },
   txMerchantRow: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0 },
-  txMerchant: { fontSize: 15, fontWeight: "500", color: "#1F2937", flexShrink: 1 },
+  txMerchant: { fontSize: 15, fontFamily: font.medium, color: colors.text, flexShrink: 1 },
   bankTag: {
-    backgroundColor: "#EEF7F2",
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     alignSelf: "flex-start",
   },
-  bankTagText: { fontSize: 10, fontWeight: "500", color: "#3D8E62" },
-  txCategory: { fontSize: 12, color: "#6B7280", marginTop: 2 },
+  bankTagText: { fontSize: 10, fontFamily: font.medium, color: colors.primary },
+  txCategory: { fontSize: 12, fontFamily: font.regular, color: colors.textTertiary, marginTop: 2 },
   txRight: { alignItems: "flex-end" },
-  txAmount: { fontSize: 15, fontWeight: "600" },
-  txAmountInflow: { color: "#059669" },
-  txAmountOutflow: { color: "#1F2937" },
-  txDate: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
+  txAmount: { fontSize: 15, fontFamily: font.semibold },
+  txAmountInflow: { color: colors.green },
+  txAmountOutflow: { color: colors.text },
+  txDate: { fontSize: 11, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
   emptyState: {
     alignItems: "center",
     padding: 32,
   },
-  emptyText: { fontSize: 14, color: "#9CA3AF", marginTop: 12 },
+  emptyText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted, marginTop: 12 },
   loadingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1042,21 +1072,20 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 24,
   },
-  loadingText: { fontSize: 14, color: "#6B7280", marginTop: 12 },
+  loadingText: { fontSize: 14, fontFamily: font.regular, color: colors.textTertiary, marginTop: 12 },
   loadingCard: {
     flex: 1,
     margin: 20,
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radii["2xl"],
     padding: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#EEF7F2",
+    ...shadow.md,
   },
-  loadingCoconut: { fontSize: 72, marginBottom: 16 },
-  loadingTitle: { fontSize: 18, fontWeight: "600", color: "#1F2937", marginBottom: 6 },
-  loadingSubtitle: { fontSize: 14, color: "#6B7280" },
+  loadingCoconut: { fontSize: 72, fontFamily: font.regular, marginBottom: 16 },
+  loadingTitle: { fontSize: 18, fontFamily: font.semibold, color: colors.text, marginBottom: 6 },
+  loadingSubtitle: { fontSize: 14, fontFamily: font.regular, color: colors.textTertiary },
   loadingEscape: {
     marginTop: 28,
     alignItems: "center",
@@ -1068,42 +1097,44 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
   },
-  loadingEscapeText: { fontSize: 14, fontWeight: "500", color: "#3D8E62" },
-  loadingEscapeTextMuted: { color: "#6B7280" },
+  loadingEscapeText: { fontSize: 14, fontFamily: font.medium, color: colors.primary },
+  loadingEscapeTextMuted: { color: colors.textTertiary },
   connectCard: {
     flex: 1,
     margin: 20,
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: radii["2xl"],
     padding: 32,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#EEF7F2",
+    ...shadow.md,
   },
-  connectTitle: { fontSize: 20, fontWeight: "700", color: "#1F2937", marginTop: 20 },
+  connectTitle: { fontSize: 20, fontFamily: font.bold, color: colors.text, marginTop: 20 },
   connectAccountEmail: {
     fontSize: 13,
-    color: "#6B7280",
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginTop: 6,
     textAlign: "center",
   },
   connectAccountId: {
     fontSize: 11,
-    color: "#9CA3AF",
+    fontFamily: font.regular,
+    color: colors.textMuted,
     marginTop: 4,
     textAlign: "center",
   },
   connectSubtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     textAlign: "center",
     marginTop: 8,
     lineHeight: 22,
   },
   connectHintImportant: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#B45309",
+    fontFamily: font.semibold,
+    color: colors.amber,
     textAlign: "center",
     marginTop: 12,
     lineHeight: 20,
@@ -1111,7 +1142,8 @@ const styles = StyleSheet.create({
   },
   connectErrorText: {
     fontSize: 12,
-    color: "#DC2626",
+    fontFamily: font.regular,
+    color: colors.red,
     textAlign: "center",
     marginTop: 10,
     lineHeight: 18,
@@ -1119,7 +1151,8 @@ const styles = StyleSheet.create({
   },
   connectHint: {
     fontSize: 12,
-    color: "#9CA3AF",
+    fontFamily: font.regular,
+    color: colors.textMuted,
     textAlign: "center",
     marginTop: 12,
     lineHeight: 18,
@@ -1129,13 +1162,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#3D8E62",
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: radii.lg,
     marginTop: 28,
   },
-  connectButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  connectButtonText: { color: "#fff", fontFamily: font.semibold, fontSize: 16 },
   connectRefreshButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1143,12 +1176,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingVertical: 10,
   },
-  connectRefreshText: { color: "#3D8E62", fontSize: 14, fontWeight: "500" },
+  connectRefreshText: { color: colors.primary, fontSize: 14, fontFamily: font.medium },
   connectSignOutButton: {
     marginTop: 16,
     paddingVertical: 10,
   },
-  connectSignOutText: { color: "#6B7280", fontSize: 14, textDecorationLine: "underline" },
+  connectSignOutText: { color: colors.textTertiary, fontSize: 14, fontFamily: font.regular, textDecorationLine: "underline" },
   fab: {
     position: "absolute",
     bottom: 100,
@@ -1156,31 +1189,23 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#3D8E62",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    ...shadow.lg,
   },
   fabOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: colors.overlay,
     justifyContent: "flex-end",
     paddingBottom: 120,
     paddingHorizontal: 20,
   },
   fabMenu: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
     paddingVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    ...shadow.lg,
   },
   fabMenuItem: {
     flexDirection: "row",
@@ -1189,23 +1214,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
   },
-  fabMenuText: { fontSize: 16, fontWeight: "600", color: "#1F2937" },
+  fabMenuText: { fontSize: 16, fontFamily: font.semibold, color: colors.text },
   detailOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: colors.overlayDark,
     justifyContent: "flex-end",
   },
   detailSheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii["2xl"],
+    borderTopRightRadius: radii["2xl"],
     paddingHorizontal: 20,
     paddingBottom: 34,
   },
   detailHandle: {
     width: 36,
     height: 4,
-    backgroundColor: "#D1D5DB",
+    backgroundColor: colors.textFaint,
     borderRadius: 2,
     alignSelf: "center",
     marginTop: 12,
@@ -1220,19 +1245,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   detailHeaderText: { flex: 1, minWidth: 0 },
-  detailMerchant: { fontSize: 20, fontWeight: "700", color: "#1F2937" },
-  detailAmount: { fontSize: 24, fontWeight: "700", marginTop: 8 },
+  detailMerchant: { fontSize: 20, fontFamily: font.bold, color: colors.text },
+  detailAmount: { fontSize: 24, fontFamily: font.bold, marginTop: 8 },
   detailMeta: { gap: 12 },
   detailMetaRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 16 },
-  detailLabel: { fontSize: 12, color: "#9CA3AF", minWidth: 80 },
-  detailValue: { fontSize: 14, color: "#374151", flex: 1, textAlign: "right" },
+  detailLabel: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, minWidth: 80 },
+  detailValue: { fontSize: 14, fontFamily: font.regular, color: colors.textSecondary, flex: 1, textAlign: "right" },
   detailRaw: { textAlign: "left", fontFamily: "monospace", fontSize: 12 },
   detailCloseBtn: {
     marginTop: 24,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.borderLight,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
   },
-  detailCloseText: { fontSize: 16, fontWeight: "600", color: "#374151" },
+  detailCloseText: { fontSize: 16, fontFamily: font.semibold, color: colors.textSecondary },
 });

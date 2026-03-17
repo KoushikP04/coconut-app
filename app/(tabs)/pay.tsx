@@ -15,6 +15,7 @@ import { ErrorCode } from "@stripe/stripe-terminal-react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import { useApiFetch } from "../../lib/api";
+import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 
@@ -250,7 +251,7 @@ function PayScreenInner() {
             value={amount}
             onChangeText={setAmount}
             placeholder="0.00"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             keyboardType="decimal-pad"
             editable={!collecting}
           />
@@ -292,22 +293,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
   },
   title: {
     fontSize: 22,
     fontWeight: "600",
-    color: "#1F2937",
+    fontFamily: font.semibold,
+    color: colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginBottom: 24,
   },
   warning: {
     fontSize: 13,
-    color: "#DC2626",
+    fontFamily: font.regular,
+    color: colors.red,
     marginBottom: 16,
   },
   section: {
@@ -316,27 +320,29 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
+    fontFamily: font.semibold,
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     padding: 14,
     fontSize: 18,
-    color: "#1F2937",
+    fontFamily: font.regular,
+    color: colors.text,
     marginBottom: 12,
   },
   button: {
-    backgroundColor: "#3D8E62",
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
   },
   disconnectButton: {
-    backgroundColor: "#6B7280",
+    backgroundColor: colors.textTertiary,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -345,32 +351,35 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: font.semibold,
   },
   result: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: "#EEF7F2",
-    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radii.md,
   },
   resultLabel: {
     fontSize: 12,
-    color: "#6B7280",
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginBottom: 4,
   },
   resultText: {
     fontSize: 14,
-    color: "#1F2937",
+    color: colors.text,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   hint: {
     marginTop: 24,
     fontSize: 12,
-    color: "#9CA3AF",
+    fontFamily: font.regular,
+    color: colors.textMuted,
     lineHeight: 18,
   },
   hintCode: {
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: colors.borderLight,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 4,
