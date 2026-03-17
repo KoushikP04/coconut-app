@@ -26,9 +26,11 @@ export function useTransactions() {
   const [status, setStatus] = useState<PlaidStatus>("ok");
   const hasShownInitialLoad = useRef(false);
   const transientRetryCount = useRef(0);
+  const fetchIdRef = useRef(0);
 
   const fetchData = useCallback((silent = false): Promise<void> => {
-    let cancelled = false;
+    const fetchId = ++fetchIdRef.current;
+    const isCancelled = () => fetchId !== fetchIdRef.current;
     const isFirstLoad = !hasShownInitialLoad.current;
     console.log(`[useTransactions] fetchData started silent=${silent} isFirstLoad=${isFirstLoad}`);
     setStatus("ok");
@@ -37,15 +39,14 @@ export function useTransactions() {
     const timeout = setTimeout(() => controller.abort(), 10000);
     return apiFetch("/api/plaid/status", { signal: controller.signal })
       .then((r) => {
-        clearTimeout(timeout);
-        if (cancelled) return null;
+        if (isCancelled()) return null;
         console.log(`[useTransactions] plaid/status → ${r.status}`);
         if (r.status === 425) {
           if (transientRetryCount.current < 8) {
             transientRetryCount.current += 1;
             console.log(`[useTransactions] 425 retry ${transientRetryCount.current}/8`);
             setTimeout(() => {
-              if (!cancelled) fetchData(true);
+              if (!isCancelled()) fetchData(true);
             }, 800);
             return null;
           }
@@ -67,35 +68,38 @@ export function useTransactions() {
         return r.json();
       })
       .then((data) => {
-        if (cancelled || !data) return null;
+        if (isCancelled() || !data) return null;
         if (!data.linked) {
           console.log("[useTransactions] not linked, loading=false");
+          setLinked(false);
+          setTransactions([]);
           setStatus("not_linked");
           setLoading(false);
           return null;
         }
         console.log("[useTransactions] linked! fetching transactions");
         setLinked(true);
-        return apiFetch("/api/plaid/transactions");
+        return apiFetch("/api/plaid/transactions", { signal: controller.signal });
       })
       .then((r) => {
-        if (cancelled || !r || !r.ok) return null;
+        if (isCancelled() || !r || !r.ok) return null;
         return r.json();
       })
       .then((data) => {
-        if (cancelled) return;
-        if (Array.isArray(data)) setTransactions(data as Transaction[]);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          clearTimeout(timeout);
+        if (isCancelled()) return;
+        if (Array.isArray(data)) {
+          setTransactions(data as Transaction[]);
           hasShownInitialLoad.current = true;
-          setLoading(false);
         }
       })
       .catch(() => {
+        if (!isCancelled()) setLoading(false);
+      })
+      .finally(() => {
         clearTimeout(timeout);
-        if (!cancelled) setLoading(false);
+        if (!isCancelled()) {
+          setLoading(false);
+        }
       });
   }, [apiFetch]);
 
