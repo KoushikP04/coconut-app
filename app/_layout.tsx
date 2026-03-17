@@ -4,6 +4,12 @@ import { StatusBar } from "expo-status-bar";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { AuthHandoffHandler } from "../components/AuthHandoffHandler";
+import { ThemeProvider, useTheme } from "../lib/theme-context";
+
+function StatusBarFromTheme() {
+  const { theme } = useTheme();
+  return <StatusBar style={theme.statusBarStyle === "dark" ? "dark" : "light"} />;
+}
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -70,13 +76,15 @@ function AuthSwitch() {
 
 export default function RootLayout() {
   return (
-    <ClerkProvider
-      publishableKey={publishableKey ?? ""}
-      tokenCache={tokenCache}
-    >
-      <StatusBar style="auto" />
-      <AuthHandoffHandler />
-      <AuthSwitch />
-    </ClerkProvider>
+    <ThemeProvider>
+      <ClerkProvider
+        publishableKey={publishableKey ?? ""}
+        tokenCache={tokenCache}
+      >
+        <StatusBarFromTheme />
+        <AuthHandoffHandler />
+        <AuthSwitch />
+      </ClerkProvider>
+    </ThemeProvider>
   );
 }

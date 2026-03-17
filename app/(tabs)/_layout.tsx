@@ -1,16 +1,19 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { DemoModeProvider } from "../../lib/demo-mode-context";
+import { useTheme } from "../../lib/theme-context";
 
 export default function TabLayout() {
+  const { theme } = useTheme();
   return (
     <DemoModeProvider>
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#3D8E62",
-        tabBarInactiveTintColor: "#9CA3AF",
-        headerStyle: { backgroundColor: "#EEF7F2" },
-        headerTintColor: "#1F2937",
+        tabBarActiveTintColor: theme.tabActive,
+        tabBarInactiveTintColor: theme.tabInactive,
+        tabBarStyle: { backgroundColor: theme.tabBar, borderTopColor: theme.border },
+        headerStyle: { backgroundColor: theme.primaryLight },
+        headerTintColor: theme.text,
       }}
     >
       <Tabs.Screen

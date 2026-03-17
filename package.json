@@ -14,6 +14,7 @@
     "@babel/runtime": "^7.28.6",
     "@clerk/expo": "^3.0.1",
     "@expo/vector-icons": "^15.1.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@stripe/stripe-terminal-react-native": "^0.0.1-beta.29",
     "expo": "~55.0.5",
     "expo-build-properties": "^55.0.9",
