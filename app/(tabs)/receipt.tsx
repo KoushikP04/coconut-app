@@ -288,14 +288,15 @@ function UploadStep({
 
 function ReviewStep({ rs }: { rs: ReturnType<typeof useReceiptSplit> }) {
   const syncTotals = useCallback(() => {
+    const extrasSum = (rs.editExtras ?? []).reduce((s: number, e: { amount: number }) => s + e.amount, 0);
     const total =
-      Math.round((rs.editSubtotal + rs.editTax + rs.editTip) * 100) / 100;
+      Math.round((rs.editSubtotal + rs.editTax + rs.editTip + extrasSum) * 100) / 100;
     rs.setEditTotal(total);
-  }, [rs.editSubtotal, rs.editTax, rs.editTip]);
+  }, [rs.editSubtotal, rs.editTax, rs.editTip, rs.editExtras]);
 
   useEffect(() => {
     syncTotals();
-  }, [rs.editSubtotal, rs.editTax, rs.editTip]);
+  }, [rs.editSubtotal, rs.editTax, rs.editTip, rs.editExtras]);
 
   return (
     <View style={styles.reviewBlock}>
