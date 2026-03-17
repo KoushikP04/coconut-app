@@ -9,15 +9,17 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import { useStripeTerminal } from "@stripe/stripe-terminal-react-native";
+import { StripeTerminalProvider, useStripeTerminal } from "@stripe/stripe-terminal-react-native";
 import type { Reader } from "@stripe/stripe-terminal-react-native";
 import { ErrorCode } from "@stripe/stripe-terminal-react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useAuth } from "@clerk/expo";
 import { useApiFetch } from "../../lib/api";
+import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 
-export default function PayScreen() {
+function PayScreenInner() {
   const params = useLocalSearchParams<{
     amount?: string;
     groupId?: string;
@@ -249,7 +251,7 @@ export default function PayScreen() {
             value={amount}
             onChangeText={setAmount}
             placeholder="0.00"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.textMuted}
             keyboardType="decimal-pad"
             editable={!collecting}
           />
@@ -278,8 +280,10 @@ export default function PayScreen() {
       )}
 
       <Text style={styles.hint}>
-        Requires a development build (expo run:ios / expo run:android). iOS: iPhone XS or later.
-        Android: NFC device, API 26+.
+        Tap to Pay does not work in Expo Go. Run{" "}
+        <Text style={styles.hintCode}>expo run:ios</Text> or{" "}
+        <Text style={styles.hintCode}>expo run:android</Text> to build with native Stripe support.
+        {"\n"}iOS: iPhone XS or later. Android: NFC device, API 26+.
       </Text>
     </View>
   );
@@ -289,22 +293,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 24,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
   },
   title: {
     fontSize: 22,
     fontWeight: "600",
-    color: "#1F2937",
+    fontFamily: font.semibold,
+    color: colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginBottom: 24,
   },
   warning: {
     fontSize: 13,
-    color: "#DC2626",
+    fontFamily: font.regular,
+    color: colors.red,
     marginBottom: 16,
   },
   section: {
@@ -313,27 +320,29 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#374151",
+    fontFamily: font.semibold,
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     padding: 14,
     fontSize: 18,
-    color: "#1F2937",
+    fontFamily: font.regular,
+    color: colors.text,
     marginBottom: 12,
   },
   button: {
-    backgroundColor: "#3D8E62",
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
   },
   disconnectButton: {
-    backgroundColor: "#6B7280",
+    backgroundColor: colors.textTertiary,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -342,27 +351,66 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: font.semibold,
   },
   result: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: "#EEF7F2",
-    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radii.md,
   },
   resultLabel: {
     fontSize: 12,
-    color: "#6B7280",
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginBottom: 4,
   },
   resultText: {
     fontSize: 14,
-    color: "#1F2937",
+    color: colors.text,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   hint: {
     marginTop: 24,
     fontSize: 12,
-    color: "#9CA3AF",
+    fontFamily: font.regular,
+    color: colors.textMuted,
     lineHeight: 18,
   },
+  hintCode: {
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    backgroundColor: colors.borderLight,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
 });
+
+export default function PayScreen() {
+  const { getToken } = useAuth();
+
+  const fetchConnectionToken = useCallback(async () => {
+    let token: string | null = null;
+    for (let i = 0; i < 4; i++) {
+      token = await getToken({ skipCache: i > 0 });
+      if (token) break;
+      if (i < 3) await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+    }
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/stripe/terminal/connection-token`, {
+      method: "POST",
+      headers: {
+        Authorization: token ? `Bearer ${token}` : "",
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to get connection token");
+    return data.secret;
+  }, [getToken]);
+
+  return (
+    <StripeTerminalProvider logLevel="error" tokenProvider={fetchConnectionToken}>
+      <PayScreenInner />
+    </StripeTerminalProvider>
+  );
+}
