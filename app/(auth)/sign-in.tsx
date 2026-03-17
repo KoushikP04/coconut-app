@@ -75,7 +75,7 @@ export default function SignInScreen() {
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === "SIGN_IN_CANCELLED" || err.code === "-5") return;
-      console.error("[auth-mobile] google_sign_in_error", e);
+      console.error("[auth-mobile] google_sign_in_error", (e as Error)?.message ?? "unknown");
       setError(getClerkErrorMessage(e, "Google sign-in failed"));
     } finally {
       setGoogleLoading(false);
@@ -93,7 +93,7 @@ export default function SignInScreen() {
     }
     setError("");
     setLoading(true);
-    console.log("[auth-mobile] password_sign_in_start", { email: email.trim().toLowerCase() });
+    console.log("[auth-mobile] password_sign_in_start");
     try {
       const res = await withTimeout(
         signIn.create({ identifier: email.trim(), password } as { identifier: string; password: string }),
@@ -113,7 +113,7 @@ export default function SignInScreen() {
         setError("Sign-in did not create a session. Please try again.");
       }
     } catch (e: unknown) {
-      console.error("[auth-mobile] password_sign_in_error", e);
+      console.error("[auth-mobile] password_sign_in_error", (e as Error)?.message ?? "unknown");
       setError(getClerkErrorMessage(e, "Sign in failed"));
     } finally {
       setLoading(false);
@@ -126,7 +126,7 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Text style={styles.title}>Coconut</Text>
       <Text style={styles.subtitle}>Sign in to continue</Text>
