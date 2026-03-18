@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useStripeTerminal } from "@stripe/stripe-terminal-react-native";
 import type { Reader } from "@stripe/stripe-terminal-react-native";
 import { ErrorCode } from "@stripe/stripe-terminal-react-native";
@@ -77,6 +78,12 @@ export default function PayScreen() {
     setConnecting(true);
     try {
       const locRes = await apiFetch("/api/stripe/terminal/location");
+      if (!locRes.ok) {
+        const errData = await locRes.json().catch(() => ({}));
+        Alert.alert("Error", errData.error ?? "Could not get Terminal location");
+        setConnecting(false);
+        return;
+      }
       const locData = await locRes.json();
       const locationId = locData.locationId;
 
@@ -95,6 +102,7 @@ export default function PayScreen() {
 
       if (connectResult.error) {
         Alert.alert("Connection failed", connectResult.error.message ?? "Could not connect");
+        return;
       }
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Connection failed");
@@ -131,6 +139,12 @@ export default function PayScreen() {
         method: "POST",
         body,
       });
+      if (!piRes.ok) {
+        const errData = await piRes.json().catch(() => ({}));
+        Alert.alert("Error", errData.error ?? "Failed to create payment intent");
+        setCollecting(false);
+        return;
+      }
       const piData = await piRes.json();
       const clientSecret = piData.clientSecret;
 
@@ -194,7 +208,8 @@ export default function PayScreen() {
   const isConnected = !!connectedReader;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top"]}>
+      <View style={styles.container}>
       <Text style={styles.title}>Tap to Pay</Text>
       <Text style={styles.subtitle}>
         Accept contactless payments with your phone. No reader required.
@@ -281,7 +296,8 @@ export default function PayScreen() {
         Requires a development build (expo run:ios / expo run:android). iOS: iPhone XS or later.
         Android: NFC device, API 26+.
       </Text>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
