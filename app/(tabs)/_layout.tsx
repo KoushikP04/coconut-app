@@ -31,6 +31,7 @@ export default function TabLayout() {
         name="insights"
         options={{
           title: "Insights",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="analytics" color={color} size={size} />,
         }}
       />

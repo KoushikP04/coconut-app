@@ -22,10 +22,13 @@ function TerminalTokenProvider({ children }: { children: React.ReactElement | Re
       if (token) break;
       if (i < 3) await new Promise((r) => setTimeout(r, 300 * (i + 1)));
     }
+    if (!token) {
+      throw new Error("Authentication required for Tap to Pay");
+    }
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/stripe/terminal/connection-token`, {
       method: "POST",
       headers: {
-        Authorization: token ? `Bearer ${token}` : "",
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
@@ -91,6 +94,7 @@ function AuthSwitch() {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="connected" options={{ headerShown: false }} />
       </Stack>
     );
   }
@@ -108,7 +112,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider
       publishableKey={publishableKey ?? ""}
-      tokenCache={SKIP_AUTH || FORCE_SIGN_OUT_ON_LAUNCH ? undefined : tokenCache}
+      tokenCache={SKIP_AUTH ? undefined : tokenCache}
     >
       <StatusBar style="auto" />
       <AuthSwitch />

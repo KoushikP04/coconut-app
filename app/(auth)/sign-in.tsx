@@ -93,7 +93,7 @@ export default function SignInScreen() {
     }
     setError("");
     setLoading(true);
-    console.log("[auth-mobile] password_sign_in_start", { email: email.trim().toLowerCase() });
+    console.log("[auth-mobile] password_sign_in_start");
     try {
       const res = await withTimeout(
         signIn.create({ identifier: email.trim(), password } as { identifier: string; password: string }),
@@ -126,7 +126,7 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <Text style={styles.title}>Coconut</Text>
       <Text style={styles.subtitle}>Sign in to continue</Text>
