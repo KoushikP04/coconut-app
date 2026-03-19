@@ -16,6 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSignIn } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
+import { useTheme } from "../../lib/theme-context";
+import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
 
 const SIGN_IN_TIMEOUT_MS = 20000;
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
@@ -41,6 +43,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 }
 
 export default function SignInScreen() {
+  const { theme } = useTheme();
   // Clerk v3 types changed but runtime still provides these properties
   const { isLoaded, signIn, setActive } = useSignIn() as unknown as {
     isLoaded: boolean;
@@ -139,7 +142,7 @@ export default function SignInScreen() {
   const canAttemptSignIn = email.trim().length > 0 && password.length > 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.surface }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -153,14 +156,14 @@ export default function SignInScreen() {
           {/* Brand */}
           <View style={styles.brand}>
             <Text style={styles.logo}>🥥</Text>
-            <Text style={styles.title}>Coconut</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Coconut</Text>
+            <Text style={[styles.subtitle, { color: theme.textTertiary }]}>Sign in to your account</Text>
           </View>
 
           {/* Primary: Google */}
           {(Platform.OS === "ios" || Platform.OS === "android") && (
             <TouchableOpacity
-              style={[styles.googleBtn, (googleLoading || formDisabled) && styles.btnDisabled]}
+              style={[styles.googleBtn, { backgroundColor: theme.surface, borderColor: theme.border }, (googleLoading || formDisabled) && styles.btnDisabled]}
               onPress={handleGoogleSignIn}
               disabled={googleLoading || formDisabled}
             >
@@ -169,24 +172,24 @@ export default function SignInScreen() {
               ) : (
                 <>
                   <Text style={styles.googleIcon}>G</Text>
-                  <Text style={styles.googleText}>Continue with Google</Text>
+                  <Text style={[styles.googleText, { color: theme.textSecondary }]}>Continue with Google</Text>
                 </>
               )}
             </TouchableOpacity>
           )}
 
           <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            <Text style={[styles.dividerText, { color: theme.textQuaternary }]}>or</Text>
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
           </View>
 
           {/* Email / Password */}
           <View style={styles.form}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.inputBackground, borderColor: theme.border, color: theme.inputText }]}
               placeholder="Email"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.inputPlaceholder}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -195,23 +198,23 @@ export default function SignInScreen() {
               editable={!formDisabled}
             />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.inputBackground, borderColor: theme.border, color: theme.inputText }]}
               placeholder="Password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.inputPlaceholder}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="password"
               editable={!formDisabled}
             />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: theme.error }]}>{error}</Text> : null}
             {clerkStuckHint && !isLoaded && (
               <Text style={styles.hint}>
                 Auth is loading slowly. Try the browser option below.
               </Text>
             )}
             <TouchableOpacity
-              style={[styles.primaryBtn, (loading || (formDisabled && !canAttemptSignIn)) && styles.btnDisabled]}
+              style={[styles.primaryBtn, { backgroundColor: theme.primary }, (loading || (formDisabled && !canAttemptSignIn)) && styles.btnDisabled]}
               onPress={handleSignIn}
               disabled={loading || (!canAttemptSignIn && formDisabled)}
             >
@@ -228,8 +231,8 @@ export default function SignInScreen() {
             style={styles.swapBtn}
             onPress={() => router.replace("/(auth)/sign-up")}
           >
-            <Text style={styles.swapText}>Don’t have an account? </Text>
-            <Text style={styles.swapLink}>Sign up</Text>
+            <Text style={[styles.swapText, { color: theme.textTertiary }]}>Don't have an account? </Text>
+            <Text style={[styles.swapLink, { color: theme.primary }]}>Sign up</Text>
           </Pressable>
 
           {/* Browser fallback */}
@@ -237,7 +240,7 @@ export default function SignInScreen() {
             style={styles.browserBtn}
             onPress={() => Linking.openURL(webLoginUrl)}
           >
-            <Text style={styles.browserText}>Open login in browser</Text>
+            <Text style={[styles.browserText, { color: theme.textQuaternary }]}>Open login in browser</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -246,7 +249,7 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" },
+  safe: { flex: 1, backgroundColor: colors.surface },
   container: { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -259,16 +262,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 40,
   },
-  logo: { fontSize: 48, marginBottom: 12 },
+  logo: { fontSize: 48, marginBottom: 12, fontFamily: font.regular },
   title: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#111827",
+    fontFamily: font.bold,
+    color: colors.text,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
-    color: "#6B7280",
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginTop: 6,
   },
   googleBtn: {
@@ -276,22 +281,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
     paddingVertical: 16,
     paddingHorizontal: 24,
+    ...shadow.sm,
   },
   googleIcon: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#4285F4",
+    fontFamily: font.semibold,
+    color: colors.blue,
   },
   googleText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#374151",
+    fontFamily: font.medium,
+    color: colors.textSecondary,
   },
   divider: {
     flexDirection: "row",
@@ -301,45 +309,51 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: colors.border,
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 13,
-    color: "#9CA3AF",
+    fontFamily: font.medium,
+    color: colors.textMuted,
     fontWeight: "500",
   },
   form: { gap: 12 },
   input: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     paddingVertical: 16,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#111827",
+    fontFamily: font.regular,
+    color: colors.text,
   },
   error: {
     fontSize: 14,
-    color: "#DC2626",
+    fontFamily: font.regular,
+    color: colors.red,
     marginTop: 4,
   },
   hint: {
     fontSize: 13,
-    color: "#B45309",
+    fontFamily: font.regular,
+    color: colors.amber,
     marginTop: 4,
   },
   primaryBtn: {
-    backgroundColor: "#3D8E62",
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 12,
+    ...shadow.md,
   },
   primaryBtnText: {
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: font.semibold,
     color: "#fff",
   },
   btnDisabled: { opacity: 0.6 },
@@ -348,15 +362,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 28,
   },
-  swapText: { fontSize: 15, color: "#6B7280" },
-  swapLink: { fontSize: 15, fontWeight: "600", color: "#3D8E62" },
+  swapText: { fontSize: 15, fontFamily: font.regular, color: colors.textTertiary },
+  swapLink: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.primary },
   browserBtn: {
     marginTop: 24,
     alignSelf: "center",
   },
   browserText: {
     fontSize: 13,
-    color: "#9CA3AF",
+    fontFamily: font.regular,
+    color: colors.textMuted,
     textDecorationLine: "underline",
   },
 });
