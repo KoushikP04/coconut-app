@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { View, Text, ActivityIndicator, Linking, TouchableOpacity } from "react-native";
+import { View, Text, ActivityIndicator, Linking, TouchableOpacity, StyleSheet } from "react-native";
 import { useAuth } from "@clerk/expo";
 import { useSignIn } from "@clerk/expo/legacy";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -83,10 +83,10 @@ export default function AuthHandoffScreen() {
 
   if (error) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background, padding: 24 }}>
-        <Text style={{ color: theme.textTertiary, textAlign: "center", marginBottom: 16 }}>{error}</Text>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.textTertiary }]}>{error}</Text>
         <Text
-          style={{ color: theme.primary, fontWeight: "500" }}
+          style={[styles.link, { color: theme.primary }]}
           onPress={() => {
             processedRef.current = false;
             setError(null);
@@ -100,28 +100,40 @@ export default function AuthHandoffScreen() {
   }
 
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background, padding: 24 }}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ActivityIndicator size="large" color={theme.primary} />
-      <Text style={{ color: theme.textTertiary, marginTop: 16 }}>Opening your account...</Text>
+      <Text style={[styles.statusText, { color: theme.textTertiary }]}>Opening your account...</Text>
       {stuck && (
-        <View style={{ marginTop: 24, alignItems: "center", gap: 12, maxWidth: 280 }}>
-          <Text style={{ fontSize: 14, color: theme.textQuaternary, textAlign: "center" }}>
+        <View style={styles.stuckContainer}>
+          <Text style={[styles.stuckText, { color: theme.textQuaternary }]}>
             Taking too long? Check your connection. View your transactions in the browser or go back.
           </Text>
           <TouchableOpacity
             onPress={() => Linking.openURL(`${WEB_APP_URL}/app/transactions`)}
-            style={{ width: "100%", paddingHorizontal: 20, paddingVertical: 10, backgroundColor: theme.primary, borderRadius: 12, alignItems: "center" }}
+            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
           >
-            <Text style={{ color: "#fff", fontWeight: "500" }}>View transactions in browser</Text>
+            <Text style={styles.primaryButtonText}>View transactions in browser</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.replace(isSignedIn === true ? "/(tabs)" : "/(auth)/sign-in")}
-            style={{ paddingHorizontal: 16, paddingVertical: 8 }}
+            style={styles.secondaryButton}
           >
-            <Text style={{ color: theme.primary, fontWeight: "500", fontSize: 14 }}>Go back</Text>
+            <Text style={[styles.link, { color: theme.primary }]}>Go back</Text>
           </TouchableOpacity>
         </View>
       )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F7FAF8", padding: 24 },
+  errorText: { color: "#4B5563", textAlign: "center", marginBottom: 16 },
+  link: { color: "#3D8E62", fontWeight: "500" },
+  statusText: { color: "#4B5563", marginTop: 16 },
+  stuckContainer: { marginTop: 24, alignItems: "center", gap: 12, maxWidth: 280 },
+  stuckText: { fontSize: 14, color: "#6B7280", textAlign: "center" },
+  primaryButton: { width: "100%", paddingHorizontal: 20, paddingVertical: 10, backgroundColor: "#3D8E62", borderRadius: 12, alignItems: "center" },
+  primaryButtonText: { color: "#fff", fontWeight: "500" },
+  secondaryButton: { paddingHorizontal: 16, paddingVertical: 8 },
+});

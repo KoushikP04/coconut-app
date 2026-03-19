@@ -16,6 +16,7 @@ import { useSignUp } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 import { useTheme } from "../../lib/theme-context";
+import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
   const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
@@ -219,7 +220,7 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: { flex: 1, backgroundColor: colors.surface },
   container: { flex: 1 },
   scroll: {
     flexGrow: 1,
@@ -232,14 +233,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 40,
   },
-  logo: { fontSize: 48, marginBottom: 12 },
+  logo: { fontSize: 48, marginBottom: 12, fontFamily: font.regular },
   title: {
     fontSize: 26,
     fontWeight: "700",
+    fontFamily: font.bold,
+    color: colors.text,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginTop: 6,
   },
   googleBtn: {
@@ -247,19 +252,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
     paddingVertical: 16,
     paddingHorizontal: 24,
+    ...shadow.sm,
   },
   googleIcon: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#4285F4",
+    fontFamily: font.semibold,
+    color: colors.blue,
   },
   googleText: {
     fontSize: 16,
     fontWeight: "500",
+    fontFamily: font.medium,
+    color: colors.textSecondary,
   },
   divider: {
     flexDirection: "row",
@@ -269,37 +280,51 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
+    backgroundColor: colors.border,
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 13,
+    fontFamily: font.medium,
+    color: colors.textMuted,
     fontWeight: "500",
   },
   form: { gap: 12 },
   input: {
+    backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     paddingVertical: 16,
     paddingHorizontal: 16,
     fontSize: 16,
+    fontFamily: font.regular,
+    color: colors.text,
   },
   verifyHint: {
     fontSize: 14,
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     marginBottom: 4,
   },
   error: {
     fontSize: 14,
+    fontFamily: font.regular,
+    color: colors.red,
     marginTop: 4,
   },
   primaryBtn: {
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 12,
+    ...shadow.md,
   },
   primaryBtnText: {
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: font.semibold,
     color: "#fff",
   },
   btnDisabled: { opacity: 0.6 },
@@ -308,6 +333,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 28,
   },
-  swapText: { fontSize: 15 },
-  swapLink: { fontSize: 15, fontWeight: "600" },
+  swapText: { fontSize: 15, fontFamily: font.regular, color: colors.textTertiary },
+  swapLink: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.primary },
 });

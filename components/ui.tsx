@@ -1,13 +1,23 @@
 import React, { useRef, useCallback, useEffect } from "react";
 import {
-  Animated,
-  TouchableWithoutFeedback,
+  Pressable,
   View,
   StyleSheet,
   ViewStyle,
   StyleProp,
 } from "react-native";
 import { useTheme } from "../lib/theme-context";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+  withRepeat,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
+import { colors, font, radii, shadow } from "../lib/theme";
+
 let Haptics: any = null;
 try {
   Haptics = require("expo-haptics");
@@ -15,7 +25,7 @@ try {
 
 const canHaptic = !!Haptics?.impactAsync;
 
-// ─── Pressable with scale + haptic feedback ───
+// ─── Pressable with spring scale + haptic feedback ───
 
 interface SnapPressProps {
   onPress: () => void;
@@ -34,24 +44,27 @@ export const SnapPress = React.memo(function SnapPress({
   haptic = "light",
   scaleDown = 0.97,
 }: SnapPressProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: disabled ? 0.4 : 1,
+  }));
 
   const pressIn = useCallback(() => {
-    Animated.timing(scale, {
-      toValue: scaleDown,
-      duration: 80,
-      useNativeDriver: true,
-    }).start();
-  }, [scale, scaleDown]);
+    scale.value = withSpring(scaleDown, {
+      damping: 15,
+      stiffness: 400,
+    });
+  }, [scaleDown]);
 
   const pressOut = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 4,
-      tension: 100,
-    }).start();
-  }, [scale]);
+    scale.value = withSpring(1, {
+      damping: 12,
+      stiffness: 200,
+      mass: 0.8,
+    });
+  }, []);
 
   const handlePress = useCallback(() => {
     if (disabled) return;
@@ -70,16 +83,16 @@ export const SnapPress = React.memo(function SnapPress({
   }, [disabled, haptic, onPress]);
 
   return (
-    <TouchableWithoutFeedback
+    <Pressable
       onPressIn={pressIn}
       onPressOut={pressOut}
       onPress={handlePress}
       disabled={disabled}
     >
-      <Animated.View style={[style, { transform: [{ scale }], opacity: disabled ? 0.4 : 1 }]}>
+      <Animated.View style={[style, animatedStyle]}>
         {children}
       </Animated.View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 });
 
@@ -94,23 +107,22 @@ interface SkeletonProps {
 
 export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonProps) {
   const { theme } = useTheme();
-  const shimmer = useRef(new Animated.Value(0)).current;
+  const opacity = useSharedValue(0.3);
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 800, useNativeDriver: true }),
-      ])
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.7, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.3, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
     );
-    loop.start();
-    return () => loop.stop();
-  }, [shimmer]);
+  }, []);
 
-  const opacity = shimmer.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
 
   return (
     <Animated.View
@@ -119,9 +131,9 @@ export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonPro
           width: width as any,
           height,
           borderRadius,
-          backgroundColor: theme.skeletonBase,
-          opacity,
+          backgroundColor: theme.skeletonBase ?? colors.border,
         },
+        animatedStyle,
         style,
       ]}
     />
@@ -135,12 +147,10 @@ export function SharedSkeletonScreen() {
   return (
     <View style={[sk.container, { backgroundColor: theme.background }]}>
       <View style={sk.pad}>
-        {/* Header */}
         <View style={sk.headerRow}>
           <Skeleton width={100} height={28} borderRadius={8} />
           <Skeleton width={90} height={36} borderRadius={20} />
         </View>
-        {/* Balance card */}
         <View style={[sk.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
           <View style={sk.cardRow}>
             <Skeleton width={120} height={16} />
@@ -157,9 +167,7 @@ export function SharedSkeletonScreen() {
             </View>
           </View>
         </View>
-        {/* Tab bar */}
         <Skeleton width="100%" height={40} borderRadius={12} style={{ marginBottom: 16 }} />
-        {/* List rows */}
         {[0, 1, 2, 3, 4].map(i => (
           <View key={i} style={[sk.row, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
             <Skeleton width={40} height={40} borderRadius={20} />
@@ -208,17 +216,17 @@ export function PersonSkeletonScreen() {
 }
 
 const sk = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7FAF8" },
+  container: { flex: 1, backgroundColor: colors.bg },
   pad: { padding: 20 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: "#F0F0F0" },
+  card: { backgroundColor: colors.surface, borderRadius: radii.xl, padding: 18, marginBottom: 16, ...shadow.md },
   cardRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  row: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 14, borderRadius: 14, marginBottom: 6, borderWidth: 1, borderColor: "#F5F5F5" },
+  row: { flexDirection: "row", alignItems: "center", backgroundColor: colors.surface, padding: 14, borderRadius: radii.lg, marginBottom: 6, ...shadow.sm },
   actionRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
-  txRow: { flexDirection: "row", alignItems: "center", padding: 14, backgroundColor: "#fff", borderRadius: 12, marginBottom: 6, borderWidth: 1, borderColor: "#F5F5F5" },
+  txRow: { flexDirection: "row", alignItems: "center", padding: 14, backgroundColor: colors.surface, borderRadius: radii.md, marginBottom: 6, ...shadow.sm },
 });
 
-// ─── Haptic helpers (safe — no-op if native module missing) ───
+// ─── Haptic helpers ───
 
 const noop = () => {};
 const safeHaptic = (fn: () => Promise<void>) => {

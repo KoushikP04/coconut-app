@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useApiFetch } from "../lib/api";
 import { useTheme } from "../lib/theme-context";
+import { colors, font, radii } from "../lib/theme";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_WAIT_MS = 45000; // Give auth/token + first sync enough time
@@ -92,6 +93,7 @@ export default function ConnectedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.primaryLight,
   },
   content: {
     flex: 1,
@@ -100,20 +102,27 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   text: {
+    fontFamily: font.semibold,
     fontSize: 18,
     fontWeight: "600",
+    color: colors.text,
   },
   subtext: {
+    fontFamily: font.regular,
     fontSize: 14,
+    color: colors.textTertiary,
   },
   skipBtn: {
     marginTop: 24,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: radii.md,
+    backgroundColor: colors.border,
   },
   skipBtnText: {
+    fontFamily: font.semibold,
     fontSize: 15,
     fontWeight: "600",
+    color: colors.textSecondary,
   },
 });

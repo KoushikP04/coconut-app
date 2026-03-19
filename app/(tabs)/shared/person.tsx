@@ -19,6 +19,7 @@ import { useDemoMode } from "../../../lib/demo-mode-context";
 import { useDemoData } from "../../../lib/demo-context";
 import { PersonSkeletonScreen, haptic } from "../../../components/ui";
 import { useTheme } from "../../../lib/theme-context";
+import { colors, font, fontSize, shadow, radii, space } from "../../../lib/theme";
 
 const MEMBER_COLORS = ["#3D8E62", "#4A6CF7", "#E8507A", "#F59E0B", "#10A37F", "#8B5CF6"];
 
@@ -211,32 +212,37 @@ export default function PersonScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 100 },
   header: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
   headerInfo: { flex: 1 },
-  headerName: { fontSize: 22, fontWeight: "700" },
-  headerBalance: { fontSize: 15, fontWeight: "600", marginTop: 4 },
+  headerName: { fontSize: 22, fontWeight: "700", fontFamily: font.bold, color: colors.text },
+  headerBalance: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, marginTop: 4 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
-  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 12 },
-  btnTap: { backgroundColor: "#4A6CF7" },
-  btnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
-  btnSecondaryText: { fontWeight: "500", fontSize: 14 },
-  settledBadge: { flexDirection: "row", alignItems: "center", gap: 8, padding: 14, borderRadius: 12, marginBottom: 24 },
-  settledText: { fontSize: 14, fontWeight: "600" },
-  section: { fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
-  emptyText: { fontSize: 14 },
-  card: { borderRadius: 14, borderWidth: 1, overflow: "hidden" },
+  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 18, borderRadius: radii.md },
+  btnPrimary: { backgroundColor: colors.primary },
+  btnTap: { backgroundColor: colors.blue },
+  btnSecondary: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  btnText: { color: "#fff", fontWeight: "600", fontFamily: font.semibold, fontSize: 14 },
+  btnSecondaryText: { color: colors.textSecondary, fontWeight: "500", fontFamily: font.medium, fontSize: 14 },
+  settledBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primaryLight, padding: 14, borderRadius: radii.md, marginBottom: 24 },
+  settledText: { fontSize: 14, color: colors.primaryDark, fontWeight: "600", fontFamily: font.semibold },
+  section: { fontSize: 13, fontWeight: "700", fontFamily: font.bold, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
+  emptyText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
+  card: { backgroundColor: colors.surface, borderRadius: radii.lg, overflow: "hidden", ...shadow.md },
   txRow: { flexDirection: "row", alignItems: "center", padding: 14 },
-  txBorder: { borderBottomWidth: 1 },
+  txBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
   txInfo: { flex: 1 },
-  txMerchant: { fontSize: 15, fontWeight: "600" },
-  txGroup: { fontSize: 12, marginTop: 2 },
+  txMerchant: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.text },
+  txGroup: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
   txRight: { alignItems: "flex-end" },
-  txAmt: { fontSize: 15, fontWeight: "700" },
-  txTotal: { fontSize: 12, marginTop: 2 },
+  txAmt: { fontSize: 15, fontWeight: "700", fontFamily: font.bold },
+  txTotal: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
   avatar: { justifyContent: "center", alignItems: "center" },
-  avatarText: { color: "#fff", fontWeight: "700" },
+  avatarText: { color: "#fff", fontWeight: "700", fontFamily: font.bold },
+  green: { color: colors.green },
+  amber: { color: colors.amber },
+  muted: { color: colors.textMuted },
 });

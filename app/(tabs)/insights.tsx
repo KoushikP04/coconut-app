@@ -8,12 +8,14 @@ import {
   ActivityIndicator,
   Linking,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTransactions } from "../../hooks/useTransactions";
 import { useSubscriptions } from "../../hooks/useSubscriptions";
 import { useGroupsSummary } from "../../hooks/useGroups";
 import { useTheme } from "../../lib/theme-context";
+import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
 
@@ -88,11 +90,12 @@ export default function InsightsScreen() {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Insights</Text>
         <TouchableOpacity onPress={openSettings} style={styles.settingsBtn} hitSlop={12}>
@@ -159,7 +162,7 @@ export default function InsightsScreen() {
             {subscriptions.map((sub) => (
               <View key={sub.id} style={[styles.subRow, { borderBottomColor: theme.borderLight }]}>
                 <View style={styles.subIcon}>
-                  <Ionicons name="refresh" size={16} color="#7C3AED" />
+                  <Ionicons name="refresh" size={16} color={colors.purple} />
                 </View>
                 <View style={styles.subInfo}>
                   <Text style={[styles.subMerchant, { color: theme.text }]} numberOfLines={1}>
@@ -174,13 +177,15 @@ export default function InsightsScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { justifyContent: "center", alignItems: "center" },
+  scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
   header: {
     flexDirection: "row",
@@ -188,66 +193,72 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
   },
-  title: { fontSize: 24, fontWeight: "700" },
+  title: { fontSize: 24, fontWeight: "700", fontFamily: font.bold, color: colors.text },
   settingsBtn: { padding: 4 },
   cardsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
   card: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: radii.xl,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.05)",
+    ...shadow.md,
   },
-  cardValue: { fontSize: 18, fontWeight: "700", marginTop: 8 },
-  cardLabel: { fontSize: 12, marginTop: 2 },
+  cardValue: { fontSize: 18, fontWeight: "700", fontFamily: font.bold, color: colors.text, marginTop: 8 },
+  cardLabel: { fontSize: 12, fontFamily: font.regular, color: colors.textTertiary, marginTop: 2 },
   section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: "600", marginBottom: 12 },
-  categoryList: { borderRadius: 12, borderWidth: 1 },
+  sectionTitle: { fontSize: 16, fontWeight: "600", fontFamily: font.semibold, color: colors.textSecondary, marginBottom: 12 },
+  categoryList: { backgroundColor: colors.surface, borderRadius: radii.md, ...shadow.md },
   categoryRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
     borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   categoryIndex: {
     width: 24,
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: font.semibold,
+    color: colors.textMuted,
   },
-  categoryName: { flex: 1, fontSize: 15 },
-  categoryAmount: { fontSize: 15, fontWeight: "600" },
-  subList: { borderRadius: 12, borderWidth: 1 },
+  categoryName: { flex: 1, fontSize: 15, fontFamily: font.regular, color: colors.text },
+  categoryAmount: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.text },
+  subList: { backgroundColor: colors.surface, borderRadius: radii.md, ...shadow.md },
   subRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 14,
     borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   subIcon: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: "#F3E8FF",
+    borderRadius: radii.sm,
+    backgroundColor: colors.purpleBg,
     alignItems: "center",
     justifyContent: "center",
   },
   subInfo: { flex: 1, marginLeft: 12 },
-  subMerchant: { fontSize: 15, fontWeight: "500" },
-  subMeta: { fontSize: 12, marginTop: 2 },
-  emptyText: { fontSize: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: "600", marginTop: 16 },
+  subMerchant: { fontSize: 15, fontWeight: "500", fontFamily: font.medium, color: colors.text },
+  subMeta: { fontSize: 12, fontFamily: font.regular, color: colors.textTertiary, marginTop: 2 },
+  emptyText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
+  emptyTitle: { fontSize: 18, fontWeight: "600", fontFamily: font.semibold, color: colors.textSecondary, marginTop: 16 },
   emptySubtitle: {
     fontSize: 14,
+    fontFamily: font.regular,
+    color: colors.textTertiary,
     textAlign: "center",
     marginTop: 8,
     paddingHorizontal: 32,
   },
   connectButton: {
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: radii.lg,
     marginTop: 24,
   },
-  connectButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-  loadingText: { fontSize: 14, marginTop: 12 },
+  connectButtonText: { color: "#fff", fontWeight: "600", fontFamily: font.semibold, fontSize: 16 },
+  loadingText: { fontSize: 14, fontFamily: font.regular, color: colors.textTertiary, marginTop: 12 },
 });

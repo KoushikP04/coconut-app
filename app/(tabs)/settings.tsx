@@ -19,6 +19,7 @@ import { useTransactions } from "../../hooks/useTransactions";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../lib/theme-context";
 import type { ThemeMode } from "../../lib/colors";
+import { colors, font, fontSize, shadow, radii, space, type as T } from "../../lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
 
@@ -302,6 +303,23 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Tap to Pay — checklist 3.6 */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Tap to Pay</Text>
+          <View style={[styles.infoBox, { backgroundColor: theme.primaryLight, borderColor: theme.primaryLight }]}>
+            <Ionicons name="hardware-chip-outline" size={16} color={theme.primary} />
+            <Text style={[styles.infoText, { color: theme.primary }]}>
+              Accept contactless payments with your iPhone. No reader required. Connect and accept terms in the Pay tab.
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => router.push("/(tabs)/pay")}
+          >
+            <Text style={[styles.link, { color: theme.primary }]}>Open Pay tab →</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Data & Security */}
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Data & security</Text>
@@ -349,18 +367,19 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: colors.bg },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingTop: 8 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 4 },
-  subtitle: { fontSize: 14, marginBottom: 24 },
+  title: { fontSize: 24, fontWeight: "700", fontFamily: font.bold, color: colors.text, marginBottom: 4 },
+  subtitle: { fontSize: 14, fontFamily: font.regular, color: colors.textTertiary, marginBottom: 24 },
   card: {
-    borderRadius: 16,
-    borderWidth: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    ...shadow.md,
     padding: 20,
     marginBottom: 16,
   },
-  sectionTitle: { fontSize: 15, fontWeight: "600", marginBottom: 16 },
+  sectionTitle: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.text, marginBottom: 16 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   themeRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
   themeBtn: {
@@ -377,69 +396,80 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
   },
-  avatarText: { fontSize: 20, fontWeight: "600", color: "#fff" },
-  label: { fontSize: 13, fontWeight: "500", marginBottom: 6 },
+  avatarText: { fontSize: 20, fontWeight: "600", fontFamily: font.semibold, color: colors.surface },
+  label: { fontSize: 13, fontWeight: "500", fontFamily: font.medium, color: colors.textSecondary, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     padding: 12,
     fontSize: 16,
+    fontFamily: font.regular,
+    color: colors.text,
     marginBottom: 16,
   },
-  inputDisabled: {},
+  inputDisabled: { backgroundColor: colors.surfaceSecondary, color: colors.textTertiary },
   button: {
+    backgroundColor: colors.primary,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignItems: "center",
     marginTop: 4,
   },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  buttonText: { color: colors.surface, fontSize: 15, fontWeight: "600", fontFamily: font.semibold },
   accountList: { marginBottom: 12 },
   accountRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
   accountIcon: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: radii.sm,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
   },
-  accountIconText: { fontSize: 16, fontWeight: "600", color: "#fff" },
+  accountIconText: { fontSize: 16, fontWeight: "600", fontFamily: font.semibold, color: colors.surface },
   accountInfo: { flex: 1 },
-  accountName: { fontSize: 14, fontWeight: "600" },
-  accountMask: { fontSize: 12, marginTop: 2 },
-  link: { fontSize: 14, fontWeight: "500" },
+  accountName: { fontSize: 14, fontWeight: "600", fontFamily: font.semibold, color: colors.text },
+  accountMask: { fontSize: 12, fontFamily: font.regular, color: colors.textTertiary, marginTop: 2 },
+  link: { fontSize: 14, color: colors.primary, fontWeight: "500", fontFamily: font.medium },
   linkButton: { marginBottom: 12 },
   dangerButton: {
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: radii.md,
     borderWidth: 1,
+    borderColor: colors.redBorder,
+    backgroundColor: colors.redSurface,
     alignItems: "center",
     marginTop: 8,
   },
-  dangerText: { fontSize: 14, fontWeight: "500" },
-  error: { fontSize: 13, marginBottom: 12 },
-  muted: { fontSize: 13, marginBottom: 12 },
+  dangerText: { fontSize: 14, color: colors.red, fontWeight: "500", fontFamily: font.medium },
+  error: { fontSize: 13, fontFamily: font.regular, color: colors.red, marginBottom: 12 },
+  muted: { fontSize: 13, fontFamily: font.regular, color: colors.textMuted, marginBottom: 12 },
   infoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
-    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radii.md,
     borderWidth: 1,
+    borderColor: colors.primaryMuted,
     padding: 14,
     marginBottom: 16,
   },
-  infoText: { fontSize: 13, flex: 1, lineHeight: 20 },
+  infoText: { fontSize: 13, fontFamily: font.regular, color: colors.primaryDark, flex: 1, lineHeight: 20 },
   browserLink: {
     flexDirection: "row",
     alignItems: "center",
@@ -447,7 +477,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 24,
   },
-  browserLinkText: { fontSize: 14, fontWeight: "500" },
+  browserLinkText: { fontSize: 14, color: colors.primary, fontWeight: "500", fontFamily: font.medium },
   signOutButton: { paddingVertical: 14, alignItems: "center" },
-  signOutText: { fontSize: 15, fontWeight: "500" },
+  signOutText: { fontSize: 15, color: colors.red, fontWeight: "500", fontFamily: font.medium },
 });
