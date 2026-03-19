@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useSignIn } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
+import { useTheme } from "../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
 
 const SIGN_IN_TIMEOUT_MS = 20000;
@@ -42,6 +43,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 }
 
 export default function SignInScreen() {
+  const { theme } = useTheme();
   // Clerk v3 types changed but runtime still provides these properties
   const { isLoaded, signIn, setActive } = useSignIn() as unknown as {
     isLoaded: boolean;
@@ -140,7 +142,7 @@ export default function SignInScreen() {
   const canAttemptSignIn = email.trim().length > 0 && password.length > 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.surface }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -154,14 +156,14 @@ export default function SignInScreen() {
           {/* Brand */}
           <View style={styles.brand}>
             <Text style={styles.logo}>🥥</Text>
-            <Text style={styles.title}>Coconut</Text>
-            <Text style={styles.subtitle}>Sign in to your account</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Coconut</Text>
+            <Text style={[styles.subtitle, { color: theme.textTertiary }]}>Sign in to your account</Text>
           </View>
 
           {/* Primary: Google */}
           {(Platform.OS === "ios" || Platform.OS === "android") && (
             <TouchableOpacity
-              style={[styles.googleBtn, (googleLoading || formDisabled) && styles.btnDisabled]}
+              style={[styles.googleBtn, { backgroundColor: theme.surface, borderColor: theme.border }, (googleLoading || formDisabled) && styles.btnDisabled]}
               onPress={handleGoogleSignIn}
               disabled={googleLoading || formDisabled}
             >
@@ -170,24 +172,24 @@ export default function SignInScreen() {
               ) : (
                 <>
                   <Text style={styles.googleIcon}>G</Text>
-                  <Text style={styles.googleText}>Continue with Google</Text>
+                  <Text style={[styles.googleText, { color: theme.textSecondary }]}>Continue with Google</Text>
                 </>
               )}
             </TouchableOpacity>
           )}
 
           <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            <Text style={[styles.dividerText, { color: theme.textQuaternary }]}>or</Text>
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
           </View>
 
           {/* Email / Password */}
           <View style={styles.form}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.inputBackground, borderColor: theme.border, color: theme.inputText }]}
               placeholder="Email"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.inputPlaceholder}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -196,23 +198,23 @@ export default function SignInScreen() {
               editable={!formDisabled}
             />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: theme.inputBackground, borderColor: theme.border, color: theme.inputText }]}
               placeholder="Password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.inputPlaceholder}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               autoComplete="password"
               editable={!formDisabled}
             />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={[styles.error, { color: theme.error }]}>{error}</Text> : null}
             {clerkStuckHint && !isLoaded && (
               <Text style={styles.hint}>
                 Auth is loading slowly. Try the browser option below.
               </Text>
             )}
             <TouchableOpacity
-              style={[styles.primaryBtn, (loading || (formDisabled && !canAttemptSignIn)) && styles.btnDisabled]}
+              style={[styles.primaryBtn, { backgroundColor: theme.primary }, (loading || (formDisabled && !canAttemptSignIn)) && styles.btnDisabled]}
               onPress={handleSignIn}
               disabled={loading || (!canAttemptSignIn && formDisabled)}
             >
@@ -229,8 +231,8 @@ export default function SignInScreen() {
             style={styles.swapBtn}
             onPress={() => router.replace("/(auth)/sign-up")}
           >
-            <Text style={styles.swapText}>Don't have an account? </Text>
-            <Text style={styles.swapLink}>Sign up</Text>
+            <Text style={[styles.swapText, { color: theme.textTertiary }]}>Don't have an account? </Text>
+            <Text style={[styles.swapLink, { color: theme.primary }]}>Sign up</Text>
           </Pressable>
 
           {/* Browser fallback */}
@@ -238,7 +240,7 @@ export default function SignInScreen() {
             style={styles.browserBtn}
             onPress={() => Linking.openURL(webLoginUrl)}
           >
-            <Text style={styles.browserText}>Open login in browser</Text>
+            <Text style={[styles.browserText, { color: theme.textQuaternary }]}>Open login in browser</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>

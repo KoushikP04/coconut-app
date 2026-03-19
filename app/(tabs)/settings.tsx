@@ -17,6 +17,8 @@ import { useIsFocused } from "@react-navigation/native";
 import { useApiFetch } from "../../lib/api";
 import { useTransactions } from "../../hooks/useTransactions";
 import { useRouter } from "expo-router";
+import { useTheme } from "../../lib/theme-context";
+import type { ThemeMode } from "../../lib/colors";
 import { colors, font, fontSize, shadow, radii, space, type as T } from "../../lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
@@ -29,7 +31,14 @@ type PlaidAccount = {
   mask?: string | null;
 };
 
+const THEME_OPTIONS: { key: ThemeMode; label: string }[] = [
+  { key: "auto", label: "Auto" },
+  { key: "light", label: "Light" },
+  { key: "dark", label: "Dark" },
+];
+
 export default function SettingsScreen() {
+  const { theme, mode, setMode } = useTheme();
   const { user } = useUser();
   const { signOut } = useClerk();
   const apiFetch = useApiFetch();
@@ -178,36 +187,65 @@ export default function SettingsScreen() {
   const webSettingsUrl = `${base}/app/settings`;
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>Manage your account and preferences</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Settings</Text>
+        <Text style={[styles.subtitle, { color: theme.textTertiary }]}>Manage your account and preferences</Text>
+
+        {/* Appearance */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Appearance</Text>
+          <View style={styles.themeRow}>
+            {THEME_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.key}
+                style={[
+                  styles.themeBtn,
+                  { backgroundColor: theme.surfaceTertiary },
+                  mode === opt.key && { backgroundColor: theme.primary },
+                ]}
+                onPress={() => setMode(opt.key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.themeBtnText,
+                    { color: theme.textTertiary },
+                    mode === opt.key && { color: "#fff", fontWeight: "700" },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         {/* Profile */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Profile</Text>
-          <View style={styles.avatar}>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Profile</Text>
+          <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
             <Text style={styles.avatarText}>
               {(user?.firstName?.[0] ?? "")}{(user?.lastName?.[0] ?? "") || "?"}
             </Text>
           </View>
-          <Text style={styles.label}>Full name</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Full name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.border, color: theme.text }]}
             value={name}
             onChangeText={setName}
             placeholder="Your name"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.inputPlaceholder}
           />
-          <Text style={styles.label}>Email</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
           <TextInput
-            style={[styles.input, styles.inputDisabled]}
+            style={[styles.input, styles.inputDisabled, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary, color: theme.textTertiary }]}
             value={email}
             editable={false}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.inputPlaceholder}
           />
           <TouchableOpacity
-            style={[styles.button, saving && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: theme.primary }, saving && styles.buttonDisabled]}
             onPress={handleSaveProfile}
             disabled={saving}
           >
@@ -220,29 +258,29 @@ export default function SettingsScreen() {
         </View>
 
         {/* Banks */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
           <View style={styles.row}>
-            <Text style={styles.sectionTitle}>Connected banks</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Connected banks</Text>
             <TouchableOpacity onPress={() => Linking.openURL(connectUrl)}>
-              <Text style={styles.link}>{linked ? "+ Add account" : "Connect bank"}</Text>
+              <Text style={[styles.link, { color: theme.primary }]}>{linked ? "+ Add account" : "Connect bank"}</Text>
             </TouchableOpacity>
           </View>
           {accountsLoading ? (
-            <ActivityIndicator color="#3D8E62" style={{ paddingVertical: 24 }} />
+            <ActivityIndicator color={theme.primary} style={{ paddingVertical: 24 }} />
           ) : accountsError ? (
-            <Text style={styles.error}>{accountsError}</Text>
+            <Text style={[styles.error, { color: theme.error }]}>{accountsError}</Text>
           ) : !Array.isArray(accounts) || accounts.length === 0 ? (
-            <Text style={styles.muted}>No accounts linked yet.</Text>
+            <Text style={[styles.muted, { color: theme.textQuaternary }]}>No accounts linked yet.</Text>
           ) : (
             <View style={styles.accountList}>
               {(Array.isArray(accounts) ? accounts : []).map((a) => (
-                <View key={a.account_id} style={styles.accountRow}>
-                  <View style={styles.accountIcon}>
+                <View key={a.account_id} style={[styles.accountRow, { borderBottomColor: theme.borderLight }]}>
+                  <View style={[styles.accountIcon, { backgroundColor: theme.primary }]}>
                     <Text style={styles.accountIconText}>{a.name[0]}</Text>
                   </View>
                   <View style={styles.accountInfo}>
-                    <Text style={styles.accountName}>{a.name}</Text>
-                    <Text style={styles.accountMask}>
+                    <Text style={[styles.accountName, { color: theme.text }]}>{a.name}</Text>
+                    <Text style={[styles.accountMask, { color: theme.textTertiary }]}>
                       {(a.subtype ?? a.type ?? "account").replace(/_/g, " ")} ••••{a.mask ?? "****"}
                     </Text>
                   </View>
@@ -254,23 +292,23 @@ export default function SettingsScreen() {
             style={styles.linkButton}
             onPress={() => Linking.openURL(`${base}/connect?update=1&from_app=1`)}
           >
-            <Text style={styles.link}>Fix connection (re-auth at bank)</Text>
+            <Text style={[styles.link, { color: theme.primary }]}>Fix connection (re-auth at bank)</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.dangerButton, (disconnecting || wiping) && styles.buttonDisabled]}
+            style={[styles.dangerButton, { borderColor: theme.errorLight, backgroundColor: theme.errorLight }, (disconnecting || wiping) && styles.buttonDisabled]}
             onPress={disconnectBank}
             disabled={disconnecting || wiping}
           >
-            <Text style={styles.dangerText}>{disconnecting ? "Disconnecting…" : "Disconnect bank"}</Text>
+            <Text style={[styles.dangerText, { color: theme.error }]}>{disconnecting ? "Disconnecting…" : "Disconnect bank"}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Tap to Pay — checklist 3.6 */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Tap to Pay</Text>
-          <View style={styles.infoBox}>
-            <Ionicons name="hardware-chip-outline" size={16} color="#3D8E62" />
-            <Text style={styles.infoText}>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Tap to Pay</Text>
+          <View style={[styles.infoBox, { backgroundColor: theme.primaryLight, borderColor: theme.primaryLight }]}>
+            <Ionicons name="hardware-chip-outline" size={16} color={theme.primary} />
+            <Text style={[styles.infoText, { color: theme.primary }]}>
               Accept contactless payments with your iPhone. No reader required. Connect and accept terms in the Pay tab.
             </Text>
           </View>
@@ -278,25 +316,25 @@ export default function SettingsScreen() {
             style={styles.linkButton}
             onPress={() => router.push("/(tabs)/pay")}
           >
-            <Text style={styles.link}>Open Pay tab →</Text>
+            <Text style={[styles.link, { color: theme.primary }]}>Open Pay tab →</Text>
           </TouchableOpacity>
         </View>
 
         {/* Data & Security */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Data & security</Text>
-          <View style={styles.infoBox}>
-            <Ionicons name="shield-checkmark" size={16} color="#3D8E62" />
-            <Text style={styles.infoText}>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Data & security</Text>
+          <View style={[styles.infoBox, { backgroundColor: theme.primaryLight, borderColor: theme.primaryLight }]}>
+            <Ionicons name="shield-checkmark" size={16} color={theme.primary} />
+            <Text style={[styles.infoText, { color: theme.primary }]}>
               Coconut uses read-only access. We never store banking credentials.
             </Text>
           </View>
           <TouchableOpacity
-            style={[styles.dangerButton, (disconnecting || wiping) && styles.buttonDisabled]}
+            style={[styles.dangerButton, { borderColor: theme.errorLight, backgroundColor: theme.errorLight }, (disconnecting || wiping) && styles.buttonDisabled]}
             onPress={wipeAllData}
             disabled={disconnecting || wiping}
           >
-            <Text style={styles.dangerText}>{wiping ? "Wiping…" : "Wipe all data & start fresh"}</Text>
+            <Text style={[styles.dangerText, { color: theme.error }]}>{wiping ? "Wiping…" : "Wipe all data & start fresh"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -305,8 +343,8 @@ export default function SettingsScreen() {
           style={styles.browserLink}
           onPress={() => Linking.openURL(webSettingsUrl)}
         >
-          <Ionicons name="open-outline" size={16} color="#3D8E62" />
-          <Text style={styles.browserLinkText}>Full settings (email, 2FA) in browser</Text>
+          <Ionicons name="open-outline" size={16} color={theme.primary} />
+          <Text style={[styles.browserLinkText, { color: theme.primary }]}>Full settings (email, 2FA) in browser</Text>
         </TouchableOpacity>
 
         {/* Sign out */}
@@ -316,9 +354,9 @@ export default function SettingsScreen() {
           disabled={signingOut}
         >
           {signingOut ? (
-            <ActivityIndicator size="small" color="#DC2626" />
+            <ActivityIndicator size="small" color={theme.error} />
           ) : (
-            <Text style={styles.signOutText}>Sign out</Text>
+            <Text style={[styles.signOutText, { color: theme.error }]}>Sign out</Text>
           )}
         </TouchableOpacity>
 
@@ -343,6 +381,17 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.text, marginBottom: 16 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  themeRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
+  themeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  themeBtnText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
   avatar: {
     width: 56,
     height: 56,

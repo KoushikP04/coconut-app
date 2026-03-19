@@ -18,6 +18,7 @@ import { useApiFetch } from "../../../lib/api";
 import { useGroupDetail, useGroupsSummary } from "../../../hooks/useGroups";
 import { useDemoMode } from "../../../lib/demo-mode-context";
 import { useDemoData } from "../../../lib/demo-context";
+import { useTheme } from "../../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii, space } from "../../../lib/theme";
 
 const MEMBER_COLORS = ["#3D8E62", "#4A6CF7", "#E8507A", "#F59E0B", "#10A37F", "#8B5CF6"];
@@ -42,6 +43,7 @@ function formatTimeAgo(iso: string): string {
 }
 
 export default function GroupScreen() {
+  const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userId } = useAuth();
   const apiFetch = useApiFetch();
@@ -62,8 +64,8 @@ export default function GroupScreen() {
 
   if (!detail) {
     return (
-      <View style={s.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[s.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -72,43 +74,43 @@ export default function GroupScreen() {
   const allSettled = (detail.balances?.filter((b) => b.total !== 0).length ?? 0) === 0;
 
   return (
-    <SafeAreaView style={s.container} edges={["top"]}>
+    <SafeAreaView style={[s.container, { backgroundColor: theme.background }]} edges={["top"]}>
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
       >
         <View style={s.groupHeader}>
-          <View style={s.groupIcon}>
-            <Ionicons name="people" size={28} color={colors.primary} />
+          <View style={[s.groupIcon, { backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="people" size={28} color={theme.primary} />
           </View>
           <View>
-            <Text style={s.groupName}>{detail.name}</Text>
-            <Text style={s.groupMeta}>
+            <Text style={[s.groupName, { color: theme.text }]}>{detail.name}</Text>
+            <Text style={[s.groupMeta, { color: theme.textTertiary }]}>
               {detail.members.length} members · ${detail.totalSpend?.toFixed(2) ?? "0.00"} total
             </Text>
           </View>
         </View>
 
-        <Text style={s.section}>Transactions</Text>
+        <Text style={[s.section, { color: theme.textTertiary }]}>Transactions</Text>
         {!hasActivity ? (
-          <View style={s.empty}>
-            <View style={s.emptyIcon}>
-              <Ionicons name="receipt-outline" size={28} color={colors.textMuted} />
+          <View style={[s.empty, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+            <View style={[s.emptyIcon, { backgroundColor: theme.surfaceTertiary }]}>
+              <Ionicons name="receipt-outline" size={28} color={theme.textQuaternary} />
             </View>
-            <Text style={s.emptyTitle}>No transactions yet</Text>
-            <Text style={s.emptySubtext}>Add an expense or split a receipt to start tracking.</Text>
+            <Text style={[s.emptyTitle, { color: theme.textSecondary }]}>No transactions yet</Text>
+            <Text style={[s.emptySubtext, { color: theme.textQuaternary }]}>Add an expense or split a receipt to start tracking.</Text>
           </View>
         ) : (
-          <View style={s.card}>
+          <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
             {(detail.activity ?? []).map((a, i) => (
-              <View key={a.id} style={[s.txRow, i < detail.activity.length - 1 && s.txBorder]}>
+              <View key={a.id} style={[s.txRow, i < detail.activity.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.borderLight }]}>
                 <View style={s.txInfo}>
-                  <Text style={s.txMerchant}>{a.merchant}</Text>
-                  <Text style={s.txMeta}>Split {a.splitCount} ways · {formatTimeAgo(a.createdAt)}</Text>
+                  <Text style={[s.txMerchant, { color: theme.text }]}>{a.merchant}</Text>
+                  <Text style={[s.txMeta, { color: theme.textQuaternary }]}>Split {a.splitCount} ways · {formatTimeAgo(a.createdAt)}</Text>
                 </View>
-                <Text style={s.txAmount}>${a.amount.toFixed(2)}</Text>
+                <Text style={[s.txAmount, { color: theme.text }]}>${a.amount.toFixed(2)}</Text>
               </View>
             ))}
           </View>
@@ -116,7 +118,7 @@ export default function GroupScreen() {
 
         {detail.suggestions && detail.suggestions.length > 0 && (
           <>
-            <Text style={[s.section, { marginTop: 24 }]}>Settle up</Text>
+            <Text style={[s.section, { marginTop: 24, color: theme.textTertiary }]}>Settle up</Text>
             {detail.suggestions.map((su) => {
               const fromName = detail.members.find((m) => m.id === su.fromMemberId)?.display_name ?? "?";
               const toName = detail.members.find((m) => m.id === su.toMemberId)?.display_name ?? "?";
@@ -124,22 +126,22 @@ export default function GroupScreen() {
               const theyPayMe = myMemberId && su.toMemberId === myMemberId;
               const iPayThem = myMemberId && su.fromMemberId === myMemberId;
               return (
-                <View key={`${su.fromMemberId}-${su.toMemberId}`} style={s.suggRow}>
+                <View key={`${su.fromMemberId}-${su.toMemberId}`} style={[s.suggRow, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
                   <View style={s.suggPeople}>
                     <MemberAvatar name={fromName} />
-                    <Ionicons name="arrow-forward" size={14} color={colors.textMuted} />
+                    <Ionicons name="arrow-forward" size={14} color={theme.textQuaternary} />
                     <MemberAvatar name={toName} />
                   </View>
                   <View style={s.suggInfo}>
-                    <Text style={s.suggText}>
+                    <Text style={[s.suggText, { color: theme.textSecondary }]}>
                       <Text style={s.bold}>{fromName}</Text> pays <Text style={s.bold}>{toName}</Text>
                     </Text>
-                    <Text style={[s.suggAmount, s.green]}>${su.amount.toFixed(2)}</Text>
+                    <Text style={[s.suggAmount, { color: theme.positive }]}>${su.amount.toFixed(2)}</Text>
                   </View>
                   <View style={s.suggActions}>
                     {theyPayMe && (
                       <TouchableOpacity
-                        style={[s.miniBtn, s.miniBtnPrimary]}
+                        style={[s.miniBtn, { backgroundColor: theme.primary }]}
                         onPress={async () => {
                           if (isDemoOn) { Alert.alert("Sent", `Payment request for $${su.amount.toFixed(2)} sent!`); return; }
                           setRequestingPayment(true);
@@ -162,7 +164,7 @@ export default function GroupScreen() {
                     )}
                     {(theyPayMe || iPayThem) && (
                       <TouchableOpacity
-                        style={[s.miniBtn, s.miniBtnSecondary]}
+                        style={[s.miniBtn, { borderWidth: 1, borderColor: theme.border }]}
                         onPress={() => {
                           if (isDemoOn && id) { demo.settleGroupSuggestion(id, su.fromMemberId, su.toMemberId); return; }
                           Alert.alert("Mark as paid", `Mark $${su.amount.toFixed(2)} as paid?`, [
@@ -185,7 +187,7 @@ export default function GroupScreen() {
                         disabled={recordingSettlement}
                         activeOpacity={0.7}
                       >
-                        <Text style={s.miniBtnSecondaryText}>Paid</Text>
+                        <Text style={[s.miniBtnSecondaryText, { color: theme.textSecondary }]}>Paid</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -196,9 +198,9 @@ export default function GroupScreen() {
         )}
 
         {hasActivity && allSettled && (
-          <View style={[s.settledBadge, { marginTop: 16 }]}>
-            <Ionicons name="checkmark-circle" size={20} color={colors.primaryDark} />
-            <Text style={s.settledBadgeText}>All settled up</Text>
+          <View style={[s.settledBadge, { marginTop: 16, backgroundColor: theme.primaryLight }]}>
+            <Ionicons name="checkmark-circle" size={20} color={theme.primaryDark} />
+            <Text style={[s.settledBadgeText, { color: theme.primaryDark }]}>All settled up</Text>
           </View>
         )}
       </ScrollView>

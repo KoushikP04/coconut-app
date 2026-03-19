@@ -27,6 +27,7 @@ import type { GroupsSummary, FriendBalance, GroupSummary as GroupSummaryType, Re
 import { useDemoMode } from "../../../lib/demo-mode-context";
 import { useDemoData } from "../../../lib/demo-context";
 import { SnapPress, SharedSkeletonScreen, haptic } from "../../../components/ui";
+import { useTheme } from "../../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii, space, card, type as T } from "../../../lib/theme";
 
 const TABS = ["Friends", "Groups", "Activity"] as const;
@@ -46,115 +47,119 @@ function timeAgo(iso: string) {
   return d === 0 ? "Today" : d === 1 ? "Yesterday" : d < 7 ? `${d}d ago` : new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// ── Balance Card ──
+// -- Balance Card --
 
-function BalanceCard({ s }: { s: GroupsSummary }) {
-  const net = s.netBalance ?? 0;
+function BalanceCard({ s: summary }: { s: GroupsSummary }) {
+  const { theme } = useTheme();
+  const net = summary.netBalance ?? 0;
   return (
-    <View style={[st.balCard, net > 0 && st.balCardGreen, net < 0 && st.balCardRed]}>
+    <View style={[st.balCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }, net > 0 && { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" }, net < 0 && { backgroundColor: "#FEF2F2", borderColor: "#FECACA" }]}>
       <View style={st.balTop}>
-        <Text style={st.balLabel}>{net > 0 ? "You are owed" : net < 0 ? "You owe" : "All settled up"}</Text>
-        {net !== 0 && <Text style={[st.balAmount, net > 0 ? st.green : st.red]}>${Math.abs(net).toFixed(2)}</Text>}
+        <Text style={[st.balLabel, { color: theme.textSecondary }]}>{net > 0 ? "You are owed" : net < 0 ? "You owe" : "All settled up"}</Text>
+        {net !== 0 && <Text style={[st.balAmount, net > 0 ? { color: theme.positive } : { color: theme.negative }]}>${Math.abs(net).toFixed(2)}</Text>}
       </View>
       <View style={st.balBottom}>
         <View style={{ flex: 1 }}>
-          <Text style={st.balSmLabel}>Owed to you</Text>
-          <Text style={[st.balSmVal, st.green]}>${(s.totalOwedToMe ?? 0).toFixed(2)}</Text>
+          <Text style={[st.balSmLabel, { color: theme.textQuaternary }]}>Owed to you</Text>
+          <Text style={[st.balSmVal, { color: theme.positive }]}>${(summary.totalOwedToMe ?? 0).toFixed(2)}</Text>
         </View>
-        <View style={st.balDivider} />
+        <View style={[st.balDivider, { backgroundColor: theme.border }]} />
         <View style={{ flex: 1 }}>
-          <Text style={st.balSmLabel}>You owe</Text>
-          <Text style={[st.balSmVal, st.red]}>${(s.totalIOwe ?? 0).toFixed(2)}</Text>
+          <Text style={[st.balSmLabel, { color: theme.textQuaternary }]}>You owe</Text>
+          <Text style={[st.balSmVal, { color: theme.negative }]}>${(summary.totalIOwe ?? 0).toFixed(2)}</Text>
         </View>
       </View>
     </View>
   );
 }
 
-// ── Tab Indicator ──
+// -- Tab Indicator --
 
 function TabBar({ active, scrollX, width, onPress }: { active: number; scrollX: Animated.Value; width: number; onPress: (i: number) => void }) {
+  const { theme } = useTheme();
   const w = width / 3;
   const tx = scrollX.interpolate({ inputRange: [0, width, width * 2], outputRange: [0, w, w * 2], extrapolate: "clamp" });
   return (
-    <View style={st.tabBar}>
-      <Animated.View style={[st.tabPill, { width: w, transform: [{ translateX: tx }] }]} />
+    <View style={[st.tabBar, { backgroundColor: theme.surfaceTertiary }]}>
+      <Animated.View style={[st.tabPill, { backgroundColor: theme.surface, width: w, transform: [{ translateX: tx }] }]} />
       {TABS.map((t, i) => (
         <TouchableOpacity key={t} style={st.tabItem} onPress={() => onPress(i)} activeOpacity={0.7}>
-          <Text style={[st.tabText, i === active && st.tabTextActive]}>{t}</Text>
+          <Text style={[st.tabText, { color: theme.textQuaternary }, i === active && { color: theme.text }]}>{t}</Text>
         </TouchableOpacity>
       ))}
     </View>
   );
 }
 
-// ── Friends Page ──
+// -- Friends Page --
 
 function FriendsPage({ friends, w, refreshControl }: { friends: FriendBalance[]; w: number; refreshControl?: React.ReactElement<RefreshControlProps> }) {
+  const { theme } = useTheme();
   return (
     <ScrollView style={{ width: w }} contentContainerStyle={st.page} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
       {!friends.length ? (
         <View style={st.empty}>
-          <Ionicons name="person-add-outline" size={32} color="#D1D5DB" />
-          <Text style={st.emptyTitle}>No friends yet</Text>
-          <Text style={st.emptySub}>Add members to a group to start.</Text>
+          <Ionicons name="person-add-outline" size={32} color={theme.textQuaternary} />
+          <Text style={[st.emptyTitle, { color: theme.textQuaternary }]}>No friends yet</Text>
+          <Text style={[st.emptySub, { color: theme.textQuaternary }]}>Add members to a group to start.</Text>
         </View>
       ) : friends.map((f, i) => (
         <SnapPress
           key={f.key}
-          style={st.row}
+          style={[st.row, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}
           onPress={() => { haptic.light(); router.push({ pathname: "/(tabs)/shared/person", params: { key: f.key } }); }}
         >
           <Avatar name={f.displayName} color={C[i % C.length]} />
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={st.rowName}>{f.displayName}</Text>
-            {f.balance !== 0 && <Text style={st.rowSub}>{f.balance > 0 ? "owes you" : "you owe"}</Text>}
+            <Text style={[st.rowName, { color: theme.text }]}>{f.displayName}</Text>
+            {f.balance !== 0 && <Text style={[st.rowSub, { color: theme.textQuaternary }]}>{f.balance > 0 ? "owes you" : "you owe"}</Text>}
           </View>
-          <Text style={[st.rowBal, f.balance > 0 && st.green, f.balance < 0 && st.amber, f.balance === 0 && st.muted]}>
+          <Text style={[st.rowBal, f.balance > 0 && { color: theme.positive }, f.balance < 0 && { color: "#B45309" }, f.balance === 0 && { color: theme.textQuaternary }]}>
             {f.balance === 0 ? "settled" : `$${Math.abs(f.balance).toFixed(2)}`}
           </Text>
-          <Ionicons name="chevron-forward" size={16} color="#D1D5DB" style={{ marginLeft: 4 }} />
+          <Ionicons name="chevron-forward" size={16} color={theme.textQuaternary} style={{ marginLeft: 4 }} />
         </SnapPress>
       ))}
     </ScrollView>
   );
 }
 
-// ── Groups Page ──
+// -- Groups Page --
 
 function GroupsPage({ groups, w, onCreate, refreshControl }: { groups: GroupSummaryType[]; w: number; onCreate: () => void; refreshControl?: React.ReactElement<RefreshControlProps> }) {
+  const { theme } = useTheme();
   return (
     <ScrollView style={{ width: w }} contentContainerStyle={st.page} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
       {!groups.length ? (
         <View style={st.empty}>
-          <Ionicons name="people-outline" size={32} color="#D1D5DB" />
-          <Text style={st.emptyTitle}>No groups yet</Text>
-          <TouchableOpacity style={st.emptyBtn} onPress={onCreate}><Ionicons name="add" size={16} color="#fff" /><Text style={st.emptyBtnText}>Create</Text></TouchableOpacity>
+          <Ionicons name="people-outline" size={32} color={theme.textQuaternary} />
+          <Text style={[st.emptyTitle, { color: theme.textQuaternary }]}>No groups yet</Text>
+          <TouchableOpacity style={[st.emptyBtn, { backgroundColor: theme.primary }]} onPress={onCreate}><Ionicons name="add" size={16} color="#fff" /><Text style={st.emptyBtnText}>Create</Text></TouchableOpacity>
         </View>
       ) : (
         <>
             {groups.map(g => (
               <SnapPress
                 key={g.id}
-                style={st.row}
+                style={[st.row, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}
                 onPress={() => { haptic.light(); router.push({ pathname: "/(tabs)/shared/group", params: { id: g.id } }); }}
               >
-                <View style={st.groupIcon}><Ionicons name="people" size={18} color="#3D8E62" /></View>
+                <View style={[st.groupIcon, { backgroundColor: theme.primaryLight }]}><Ionicons name="people" size={18} color={theme.primary} /></View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={st.rowName}>{g.name}</Text>
-                  <Text style={st.rowSub}>{g.memberCount} members · {timeAgo(g.lastActivityAt)}</Text>
+                  <Text style={[st.rowName, { color: theme.text }]}>{g.name}</Text>
+                  <Text style={[st.rowSub, { color: theme.textQuaternary }]}>{g.memberCount} members · {timeAgo(g.lastActivityAt)}</Text>
                 </View>
                 {g.myBalance !== 0 ? (
-                  <Text style={[st.rowBal, g.myBalance > 0 ? st.green : st.amber]}>${Math.abs(g.myBalance).toFixed(2)}</Text>
+                  <Text style={[st.rowBal, g.myBalance > 0 ? { color: theme.positive } : { color: "#B45309" }]}>${Math.abs(g.myBalance).toFixed(2)}</Text>
                 ) : (
-                  <Text style={[st.rowBal, st.muted]}>settled</Text>
+                  <Text style={[st.rowBal, { color: theme.textQuaternary }]}>settled</Text>
                 )}
-                <Ionicons name="chevron-forward" size={16} color="#D1D5DB" style={{ marginLeft: 4 }} />
+                <Ionicons name="chevron-forward" size={16} color={theme.textQuaternary} style={{ marginLeft: 4 }} />
               </SnapPress>
             ))}
           <TouchableOpacity style={st.addRow} onPress={onCreate} activeOpacity={0.7}>
-            <View style={st.addIcon}><Ionicons name="add" size={16} color="#9CA3AF" /></View>
-            <Text style={st.addText}>New group</Text>
+            <View style={[st.addIcon, { borderColor: theme.border }]}><Ionicons name="add" size={16} color={theme.textQuaternary} /></View>
+            <Text style={[st.addText, { color: theme.textQuaternary }]}>New group</Text>
           </TouchableOpacity>
         </>
       )}
@@ -162,43 +167,44 @@ function GroupsPage({ groups, w, onCreate, refreshControl }: { groups: GroupSumm
   );
 }
 
-// ── Activity Page ──
+// -- Activity Page --
 
 function ActivityPage({ items, w, refreshControl }: { items: RecentActivityItem[]; w: number; refreshControl?: React.ReactElement<RefreshControlProps> }) {
+  const { theme } = useTheme();
   return (
     <ScrollView style={{ width: w }} contentContainerStyle={st.page} showsVerticalScrollIndicator={false} refreshControl={refreshControl}>
       {!items.length ? (
         <View style={st.empty}>
-          <Ionicons name="time-outline" size={32} color="#D1D5DB" />
-          <Text style={st.emptyTitle}>No activity</Text>
-          <Text style={st.emptySub}>Expenses and settlements appear here.</Text>
+          <Ionicons name="time-outline" size={32} color={theme.textQuaternary} />
+          <Text style={[st.emptyTitle, { color: theme.textQuaternary }]}>No activity</Text>
+          <Text style={[st.emptySub, { color: theme.textQuaternary }]}>Expenses and settlements appear here.</Text>
         </View>
       ) : (
-        <View style={st.actCard}>
+        <View style={[st.actCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
           {items.map((it, i) => (
-            <View key={it.id} style={[st.actRow, i < items.length - 1 && st.actBorder]}>
+            <View key={it.id} style={[st.actRow, i < items.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.borderLight }]}>
               <View style={[st.actDot, {
-                backgroundColor: it.direction === "get_back" ? "#D1FAE5" : it.direction === "owe" ? "#FEE2E2" : "#F3F4F6"
+                backgroundColor: it.direction === "get_back" ? theme.successLight : it.direction === "owe" ? theme.errorLight : theme.surfaceTertiary
               }]}>
                 <Ionicons
                   name={it.direction === "settled" ? "checkmark" : it.direction === "get_back" ? "arrow-down" : "arrow-up"}
                   size={14}
-                  color={it.direction === "get_back" ? "#059669" : it.direction === "owe" ? "#DC2626" : "#6B7280"}
+                  color={it.direction === "get_back" ? theme.positive : it.direction === "owe" ? theme.negative : theme.textTertiary}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={st.actWho} numberOfLines={2}>
+                <Text style={[st.actWho, { color: theme.textSecondary }]} numberOfLines={2}>
                   <Text style={{ fontWeight: "700" }}>{it.who}</Text> {it.action}{it.what ? ` "${it.what}"` : ""}
                 </Text>
-                {it.in ? <Text style={st.actIn}>{it.in}</Text> : null}
+                {it.in ? <Text style={[st.actIn, { color: theme.textQuaternary }]}>{it.in}</Text> : null}
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 {it.direction !== "settled" && (
-                  <Text style={[st.actAmt, it.direction === "get_back" ? st.green : st.red]}>
+                  <Text style={[st.actAmt, it.direction === "get_back" ? { color: theme.positive } : { color: theme.negative }]}>
                     {it.direction === "get_back" ? "+" : "-"}${it.amount.toFixed(2)}
                   </Text>
                 )}
-                <Text style={st.actTime}>{it.time}</Text>
+                <Text style={[st.actTime, { color: theme.textQuaternary }]}>{it.time}</Text>
               </View>
             </View>
           ))}
@@ -208,11 +214,12 @@ function ActivityPage({ items, w, refreshControl }: { items: RecentActivityItem[
   );
 }
 
-// ═══════════════════════════════════
+// ===================================
 // Main
-// ═══════════════════════════════════
+// ===================================
 
 export default function SharedIndex() {
+  const { theme } = useTheme();
   const { width } = useWindowDimensions();
   const apiFetch = useApiFetch();
   const { isDemoOn, setIsDemoOn } = useDemoMode();
@@ -319,22 +326,22 @@ export default function SharedIndex() {
   }
 
   return (
-    <SafeAreaView style={st.container} edges={["top"]}>
+    <SafeAreaView style={[st.container, { backgroundColor: theme.background }]} edges={["top"]}>
       <View style={st.pad}>
         {/* Header */}
         <View style={st.header}>
-          <Text style={st.title}>Shared</Text>
+          <Text style={[st.title, { color: theme.text }]}>Shared</Text>
           <View style={st.headerRight}>
             <View style={st.demoToggle}>
-              <Text style={st.demoLabel}>Demo</Text>
+              <Text style={[st.demoLabel, { color: theme.textTertiary }]}>Demo</Text>
               <Switch
                 value={isDemoOn}
                 onValueChange={setIsDemoOn}
-                trackColor={{ false: "#E5E7EB", true: "#C3E0D3" }}
-                thumbColor={isDemoOn ? "#3D8E62" : "#F9FAFB"}
+                trackColor={{ false: theme.border, true: theme.primaryLight }}
+                thumbColor={isDemoOn ? theme.primary : theme.surfaceSecondary}
               />
             </View>
-            <TouchableOpacity style={st.addExpBtn} onPress={() => router.push("/(tabs)/add-expense")} activeOpacity={0.7}>
+            <TouchableOpacity style={[st.addExpBtn, { backgroundColor: theme.primary }]} onPress={() => router.push("/(tabs)/add-expense")} activeOpacity={0.7}>
               <Ionicons name="add" size={18} color="#fff" />
               <Text style={st.addExpText}>Expense</Text>
             </TouchableOpacity>
@@ -345,22 +352,22 @@ export default function SharedIndex() {
 
         {/* Create group inline */}
         {showCreate && (
-          <View style={st.createCard}>
+          <View style={[st.createCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
             <TextInput
-              style={st.createInput}
+              style={[st.createInput, { color: theme.text, borderBottomColor: theme.borderLight }]}
               value={groupName}
               onChangeText={setGroupName}
               placeholder="Group name"
-              placeholderTextColor="#C4C4C4"
+              placeholderTextColor={theme.inputPlaceholder}
               autoFocus
               onSubmitEditing={createGroup}
             />
             <View style={{ flexDirection: "row", gap: 8 }}>
-              <TouchableOpacity style={st.createBtn} onPress={createGroup} disabled={!groupName.trim() || creating} activeOpacity={0.7}>
+              <TouchableOpacity style={[st.createBtn, { backgroundColor: theme.primary }]} onPress={createGroup} disabled={!groupName.trim() || creating} activeOpacity={0.7}>
                 <Text style={st.createBtnText}>{creating ? "…" : "Create"}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setShowCreate(false); setGroupName(""); }} activeOpacity={0.7}>
-                <Text style={st.cancelText}>Cancel</Text>
+                <Text style={[st.cancelText, { color: theme.textQuaternary }]}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -389,7 +396,7 @@ export default function SharedIndex() {
       />
 
       {/* FAB */}
-      <SnapPress style={st.fab} onPress={() => { haptic.medium(); router.push("/(tabs)/add-expense"); }} scaleDown={0.9} haptic="none">
+      <SnapPress style={[st.fab, { backgroundColor: theme.primary, shadowColor: theme.primary }]} onPress={() => { haptic.medium(); router.push("/(tabs)/add-expense"); }} scaleDown={0.9} haptic="none">
         <Ionicons name="add" size={26} color="#fff" />
       </SnapPress>
     </SafeAreaView>

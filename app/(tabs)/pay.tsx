@@ -19,6 +19,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useApiFetch } from "../../lib/api";
+import { useTheme } from "../../lib/theme-context";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
 
@@ -38,6 +39,7 @@ type PaymentOutcome = "approved" | "declined" | "timeout" | null;
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 
 function PayScreenInner() {
+  const { theme } = useTheme();
   const params = useLocalSearchParams<{
     amount?: string;
     groupId?: string;
@@ -306,22 +308,22 @@ function PayScreenInner() {
   const isConnected = !!connectedReader;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }} edges={["top"]}>
-      <View style={styles.container}>
-      <Text style={styles.title}>Tap to Pay</Text>
-      <Text style={styles.subtitle}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.surface }} edges={["top"]}>
+      <View style={[styles.container, { backgroundColor: theme.surface }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Tap to Pay</Text>
+      <Text style={[styles.subtitle, { color: theme.textTertiary }]}>
         Accept contactless payments with your phone. No reader required.
       </Text>
 
       {!API_URL && (
-        <Text style={styles.warning}>
+        <Text style={[styles.warning, { color: theme.error }]}>
           Set EXPO_PUBLIC_API_URL to your deployed web app URL.
         </Text>
       )}
 
       {/* Connect / Disconnect */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
+        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Reader: {isConnected ? "Connected" : "Not connected"}
         </Text>
         {isConnected ? (
@@ -334,7 +336,7 @@ function PayScreenInner() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.button, connecting && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: theme.primary }, connecting && styles.buttonDisabled]}
             onPress={connectTapToPay}
             disabled={connecting || !isInitialized || discoveredReaders.length === 0}
           >
@@ -356,19 +358,20 @@ function PayScreenInner() {
       {/* Amount & Collect */}
       {isConnected && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Amount ($)</Text>
+          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Amount ($)</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.border, color: theme.text }]}
             value={amount}
             onChangeText={setAmount}
             placeholder="0.00"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={theme.inputPlaceholder}
             keyboardType="decimal-pad"
             editable={!collecting}
           />
           <TouchableOpacity
             style={[
               styles.button,
+              { backgroundColor: theme.primary },
               (!amount || parseFloat(amount) <= 0 || collecting) && styles.buttonDisabled,
             ]}
             onPress={collectPayment}
@@ -404,7 +407,7 @@ function PayScreenInner() {
 
       {/* 5.9 Outcome + 5.10 Share receipt */}
       {lastPayment && (
-        <View style={styles.result}>
+        <View style={[styles.result, { backgroundColor: theme.primaryLight }]}>
           <View style={styles.resultRow}>
             <Ionicons
               name={
@@ -417,15 +420,15 @@ function PayScreenInner() {
               size={24}
               color={
                 paymentOutcome === "approved"
-                  ? colors.green
+                  ? theme.positive
                   : paymentOutcome === "declined"
-                  ? colors.red
-                  : colors.amber
+                  ? theme.negative
+                  : theme.textQuaternary
               }
             />
-            <Text style={styles.resultLabel}>Last result</Text>
+            <Text style={[styles.resultLabel, { color: theme.textTertiary }]}>Last result</Text>
           </View>
-          <Text style={styles.resultText}>{lastPayment}</Text>
+          <Text style={[styles.resultText, { color: theme.text }]}>{lastPayment}</Text>
           {lastOutcomeAmount != null && (
             <TouchableOpacity
               style={styles.shareButton}
@@ -433,17 +436,17 @@ function PayScreenInner() {
                 paymentOutcome && shareReceipt(paymentOutcome, lastOutcomeAmount)
               }
             >
-              <Ionicons name="share-outline" size={18} color={colors.primary} />
-              <Text style={styles.shareButtonText}>Share receipt</Text>
+              <Ionicons name="share-outline" size={18} color={theme.primary} />
+              <Text style={[styles.shareButtonText, { color: theme.primary }]}>Share receipt</Text>
             </TouchableOpacity>
           )}
         </View>
       )}
 
-      <Text style={styles.hint}>
+      <Text style={[styles.hint, { color: theme.textQuaternary }]}>
         Tap to Pay does not work in Expo Go. Run{" "}
-        <Text style={styles.hintCode}>expo run:ios</Text> or{" "}
-        <Text style={styles.hintCode}>expo run:android</Text> to build with native Stripe support.
+        <Text style={[styles.hintCode, { backgroundColor: theme.surfaceTertiary }]}>expo run:ios</Text> or{" "}
+        <Text style={[styles.hintCode, { backgroundColor: theme.surfaceTertiary }]}>expo run:android</Text> to build with native Stripe support.
         {"\n"}iOS: iPhone XS or later. Android: NFC device, API 26+.
       </Text>
       </View>
