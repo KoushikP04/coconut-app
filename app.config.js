@@ -41,7 +41,7 @@ export default {
         backgroundImage: "./assets/android-icon-background.png",
       },
       package: bundleId,
-      minSdkVersion: 24,
+      minSdkVersion: 26,
       permissions: ["INTERNET"],
     },
     plugins: [

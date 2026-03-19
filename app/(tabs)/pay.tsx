@@ -176,7 +176,7 @@ function PayScreenInner() {
   );
 
   const collectPayment = useCallback(async () => {
-    const amt = parseFloat(amount);
+    const amt = Math.round(parseFloat(amount) * 100) / 100;
     if (!Number.isFinite(amt) || amt <= 0) {
       Alert.alert("Invalid amount", "Enter a valid amount to collect");
       return;

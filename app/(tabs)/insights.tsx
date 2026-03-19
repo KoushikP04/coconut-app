@@ -62,6 +62,15 @@ export default function InsightsScreen() {
 
   const openSettings = () => router.push("/(tabs)/settings");
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, { color: theme.textTertiary }]}>Loading insights...</Text>
+      </View>
+    );
+  }
+
   if (!linked) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
@@ -76,15 +85,6 @@ export default function InsightsScreen() {
         >
           <Text style={styles.connectButtonText}>Connect in web app</Text>
         </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.textTertiary }]}>Loading insights...</Text>
       </View>
     );
   }
