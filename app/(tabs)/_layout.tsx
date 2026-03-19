@@ -1,23 +1,26 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { DemoModeProvider } from "../../lib/demo-mode-context";
+import { useTheme } from "../../lib/theme-context";
 import { colors, font, fontSize } from "../../lib/theme";
 
 export default function TabLayout() {
+  const { theme } = useTheme();
   return (
     <DemoModeProvider>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
+          tabBarActiveTintColor: theme.tabActive,
+          tabBarInactiveTintColor: theme.tabInactive,
           tabBarLabelStyle: {
             fontFamily: font.semibold,
             fontSize: fontSize["2xs"],
             letterSpacing: 0.2,
           },
           tabBarStyle: {
-            backgroundColor: colors.surface,
+            backgroundColor: theme.tabBar,
             borderTopWidth: 0,
+            borderTopColor: theme.border,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: -2 },
             shadowOpacity: 0.04,
@@ -25,8 +28,8 @@ export default function TabLayout() {
             elevation: 8,
             paddingTop: 4,
           },
-          headerStyle: { backgroundColor: colors.primaryLight },
-          headerTintColor: colors.text,
+          headerStyle: { backgroundColor: theme.primaryLight },
+          headerTintColor: theme.text,
           headerTitleStyle: { fontFamily: font.semibold },
         }}
       >
@@ -53,7 +56,7 @@ export default function TabLayout() {
           options={{
             title: "Pay",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="phone-portrait-outline" color={color} size={size} />
+              <Ionicons name="hardware-chip-outline" color={color} size={size} />
             ),
           }}
         />

@@ -4,6 +4,8 @@ import { StatusBar } from "expo-status-bar";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { AuthHandoffHandler } from "../components/AuthHandoffHandler";
+import { ThemeProvider, useTheme } from "../lib/theme-context";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import {
   useFonts,
   Inter_400Regular,
@@ -16,6 +18,11 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 
 SplashScreen.preventAutoHideAsync();
+
+function StatusBarFromTheme() {
+  const { theme } = useTheme();
+  return <StatusBar style={theme.statusBarStyle === "dark" ? "dark" : "light"} />;
+}
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -102,13 +109,17 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <ClerkProvider
-      publishableKey={publishableKey ?? ""}
-      tokenCache={tokenCache}
-    >
-      <StatusBar style="auto" />
-      <AuthHandoffHandler />
-      <AuthSwitch />
-    </ClerkProvider>
+    <ThemeProvider>
+      <ClerkProvider
+        publishableKey={publishableKey ?? ""}
+        tokenCache={tokenCache}
+      >
+        <ErrorBoundary>
+          <StatusBarFromTheme />
+          <AuthHandoffHandler />
+          <AuthSwitch />
+        </ErrorBoundary>
+      </ClerkProvider>
+    </ThemeProvider>
   );
 }

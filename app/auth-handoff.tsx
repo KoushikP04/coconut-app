@@ -5,6 +5,7 @@ import { View, Text, ActivityIndicator, Linking, TouchableOpacity, StyleSheet } 
 import { useAuth } from "@clerk/expo";
 import { useSignIn } from "@clerk/expo/legacy";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTheme } from "../lib/theme-context";
 
 const STUCK_TIMEOUT_MS = 5000;
 const WEB_APP_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") || "https://coconut-lemon.vercel.app";
@@ -15,6 +16,7 @@ const WEB_APP_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") || "http
  * We exchange the ticket for a session and redirect to the dashboard.
  */
 export default function AuthHandoffScreen() {
+  const { theme } = useTheme();
   const { signIn, setActive, isLoaded } = useSignIn();
   const { isSignedIn } = useAuth();
   const router = useRouter();
@@ -81,10 +83,10 @@ export default function AuthHandoffScreen() {
 
   if (error) {
     return (
-      <View style={s.container}>
-        <Text style={s.errorText}>{error}</Text>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.textTertiary }]}>{error}</Text>
         <Text
-          style={s.link}
+          style={[styles.link, { color: theme.primary }]}
           onPress={() => {
             processedRef.current = false;
             setError(null);
@@ -98,25 +100,25 @@ export default function AuthHandoffScreen() {
   }
 
   return (
-    <View style={s.container}>
-      <ActivityIndicator size="large" color="#3D8E62" />
-      <Text style={s.statusText}>Opening your account...</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <ActivityIndicator size="large" color={theme.primary} />
+      <Text style={[styles.statusText, { color: theme.textTertiary }]}>Opening your account...</Text>
       {stuck && (
-        <View style={s.stuckContainer}>
-          <Text style={s.stuckText}>
+        <View style={styles.stuckContainer}>
+          <Text style={[styles.stuckText, { color: theme.textQuaternary }]}>
             Taking too long? Check your connection. View your transactions in the browser or go back.
           </Text>
           <TouchableOpacity
             onPress={() => Linking.openURL(`${WEB_APP_URL}/app/transactions`)}
-            style={s.primaryBtn}
+            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
           >
-            <Text style={s.primaryBtnText}>View transactions in browser</Text>
+            <Text style={styles.primaryButtonText}>View transactions in browser</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.replace(isSignedIn === true ? "/(tabs)" : "/(auth)/sign-in")}
-            style={s.secondaryBtn}
+            style={styles.secondaryButton}
           >
-            <Text style={s.secondaryBtnText}>Go back</Text>
+            <Text style={[styles.link, { color: theme.primary }]}>Go back</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -124,15 +126,14 @@ export default function AuthHandoffScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F7FAF8", padding: 24 },
   errorText: { color: "#4B5563", textAlign: "center", marginBottom: 16 },
   link: { color: "#3D8E62", fontWeight: "500" },
   statusText: { color: "#4B5563", marginTop: 16 },
   stuckContainer: { marginTop: 24, alignItems: "center", gap: 12, maxWidth: 280 },
   stuckText: { fontSize: 14, color: "#6B7280", textAlign: "center" },
-  primaryBtn: { width: "100%", paddingHorizontal: 20, paddingVertical: 10, backgroundColor: "#3D8E62", borderRadius: 12, alignItems: "center" },
-  primaryBtnText: { color: "#fff", fontWeight: "500" },
-  secondaryBtn: { paddingHorizontal: 16, paddingVertical: 8 },
-  secondaryBtnText: { color: "#3D8E62", fontWeight: "500", fontSize: 14 },
+  primaryButton: { width: "100%", paddingHorizontal: 20, paddingVertical: 10, backgroundColor: "#3D8E62", borderRadius: 12, alignItems: "center" },
+  primaryButtonText: { color: "#fff", fontWeight: "500" },
+  secondaryButton: { paddingHorizontal: 16, paddingVertical: 8 },
 });

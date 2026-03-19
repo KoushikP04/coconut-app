@@ -17,6 +17,7 @@ import { useApiFetch } from "../../lib/api";
 import { useGroupsSummary } from "../../hooks/useGroups";
 import { useDemoMode } from "../../lib/demo-mode-context";
 import { useDemoData } from "../../lib/demo-context";
+import { useTheme } from "../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
 
 type Target = { type: "group" | "friend"; key: string; name: string };
@@ -32,6 +33,7 @@ const SPLITS: { key: SplitMethod; label: string; icon: string }[] = [
 ];
 
 export default function AddExpenseScreen() {
+  const { theme } = useTheme();
   const nav = useRouter();
   const apiFetch = useApiFetch();
   const { isDemoOn } = useDemoMode();
@@ -145,17 +147,15 @@ export default function AddExpenseScreen() {
     finally { setSaving(false); }
   };
 
-  if (loading && !summary) return <View style={s.center}><ActivityIndicator size="large" color="#3D8E62" /></View>;
+  if (loading && !summary) return <View style={[s.center, { backgroundColor: theme.background }]}><ActivityIndicator size="large" color={theme.primary} /></View>;
 
-  // ════════════════════════════════
-  // Step 1 — Pick people
-  // ════════════════════════════════
+  // Step 1 -- Pick people
   if (step === 1) return (
-    <SafeAreaView style={s.root}>
+    <SafeAreaView style={[s.root, { backgroundColor: theme.background }]}>
       <View style={s.bar}>
-        <TouchableOpacity onPress={() => nav.back()} hitSlop={12}><Ionicons name="close" size={24} color="#1F2937" /></TouchableOpacity>
-        <Text style={s.barTitle}>Split with</Text>
-        <TouchableOpacity onPress={goStep2} style={[s.pill, targets.length === 0 && s.pillOff]} disabled={targets.length === 0}>
+        <TouchableOpacity onPress={() => nav.back()} hitSlop={12}><Ionicons name="close" size={24} color={theme.text} /></TouchableOpacity>
+        <Text style={[s.barTitle, { color: theme.text }]}>Split with</Text>
+        <TouchableOpacity onPress={goStep2} style={[s.pill, { backgroundColor: theme.primary }, targets.length === 0 && s.pillOff]} disabled={targets.length === 0}>
           <Text style={s.pillText}>Next</Text>
           <Ionicons name="arrow-forward" size={14} color="#fff" />
         </TouchableOpacity>
@@ -164,113 +164,109 @@ export default function AddExpenseScreen() {
       {targets.length > 0 && (
         <View style={s.chipRow}>
           {targets.map((t, i) => (
-            <TouchableOpacity key={t.key} style={s.chip} onPress={() => removeChip(t.key)}>
+            <TouchableOpacity key={t.key} style={[s.chip, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={() => removeChip(t.key)}>
               <View style={[s.dot, { backgroundColor: C[i % C.length] }]} />
-              <Text style={s.chipLabel}>{t.name}</Text>
-              <Ionicons name="close" size={12} color="#9CA3AF" />
+              <Text style={[s.chipLabel, { color: theme.text }]}>{t.name}</Text>
+              <Ionicons name="close" size={12} color={theme.textQuaternary} />
             </TouchableOpacity>
           ))}
         </View>
       )}
 
-      <View style={s.search}>
-        <Ionicons name="search" size={18} color="#9CA3AF" />
-        <TextInput style={s.searchInput} value={query} onChangeText={setQuery} placeholder="Search..." placeholderTextColor="#C4C4C4" autoFocus />
-        {!!q && <TouchableOpacity onPress={() => setQuery("")}><Ionicons name="close-circle" size={18} color="#D1D5DB" /></TouchableOpacity>}
+      <View style={[s.search, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+        <Ionicons name="search" size={18} color={theme.textQuaternary} />
+        <TextInput style={[s.searchInput, { color: theme.text }]} value={query} onChangeText={setQuery} placeholder="Search..." placeholderTextColor={theme.inputPlaceholder} autoFocus />
+        {!!q && <TouchableOpacity onPress={() => setQuery("")}><Ionicons name="close-circle" size={18} color={theme.textQuaternary} /></TouchableOpacity>}
       </View>
 
       <ScrollView style={s.list} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {filteredFriends.length > 0 && <Text style={s.label}>Friends</Text>}
+        {filteredFriends.length > 0 && <Text style={[s.label, { color: theme.textQuaternary }]}>Friends</Text>}
         {filteredFriends.map((f, i) => {
           const on = selectedKeys.has(f.key);
           return (
-            <TouchableOpacity key={f.key} style={[s.row, on && s.rowOn]} onPress={() => toggle({ type: "friend", key: f.key, name: f.displayName })}>
+            <TouchableOpacity key={f.key} style={[s.row, on && { backgroundColor: theme.primaryLight, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: 12 }]} onPress={() => toggle({ type: "friend", key: f.key, name: f.displayName })}>
               <View style={[s.av, { backgroundColor: C[i % C.length] }]}><Text style={s.avT}>{f.displayName.slice(0, 2).toUpperCase()}</Text></View>
-              <Text style={s.rowName}>{f.displayName}</Text>
-              <View style={[s.ck, on && s.ckOn]}>{on && <Ionicons name="checkmark" size={14} color="#fff" />}</View>
+              <Text style={[s.rowName, { color: theme.text }]}>{f.displayName}</Text>
+              <View style={[s.ck, { borderColor: theme.inputBorder }, on && { borderColor: theme.primary, backgroundColor: theme.primary }]}>{on && <Ionicons name="checkmark" size={14} color="#fff" />}</View>
             </TouchableOpacity>
           );
         })}
-        {filteredGroups.length > 0 && <Text style={[s.label, { marginTop: 16 }]}>Groups</Text>}
+        {filteredGroups.length > 0 && <Text style={[s.label, { marginTop: 16, color: theme.textQuaternary }]}>Groups</Text>}
         {filteredGroups.map(g => {
           const on = selectedKeys.has(g.id);
           return (
-            <TouchableOpacity key={g.id} style={[s.row, on && s.rowOn]} onPress={() => toggle({ type: "group", key: g.id, name: g.name })}>
-              <View style={s.gIcon}><Ionicons name="people" size={16} color="#3D8E62" /></View>
-              <View style={{ flex: 1 }}><Text style={s.rowName}>{g.name}</Text><Text style={s.rowMeta}>{g.memberCount} members</Text></View>
-              <View style={[s.ck, on && s.ckOn]}>{on && <Ionicons name="checkmark" size={14} color="#fff" />}</View>
+            <TouchableOpacity key={g.id} style={[s.row, on && { backgroundColor: theme.primaryLight, marginHorizontal: -8, paddingHorizontal: 8, borderRadius: 12 }]} onPress={() => toggle({ type: "group", key: g.id, name: g.name })}>
+              <View style={[s.gIcon, { backgroundColor: theme.primaryLight }]}><Ionicons name="people" size={16} color={theme.primary} /></View>
+              <View style={{ flex: 1 }}><Text style={[s.rowName, { color: theme.text }]}>{g.name}</Text><Text style={[s.rowMeta, { color: theme.textQuaternary }]}>{g.memberCount} members</Text></View>
+              <View style={[s.ck, { borderColor: theme.inputBorder }, on && { borderColor: theme.primary, backgroundColor: theme.primary }]}>{on && <Ionicons name="checkmark" size={14} color="#fff" />}</View>
             </TouchableOpacity>
           );
         })}
         <View style={{ height: 100 }} />
       </ScrollView>
-      {error && <Text style={s.err}>{error}</Text>}
+      {error && <Text style={[s.err, { color: theme.error }]}>{error}</Text>}
     </SafeAreaView>
   );
 
-  // ════════════════════════════════
-  // Step 3 — Confirmation
-  // ════════════════════════════════
+  // Step 3 -- Confirmation
   if (step === 3) return (
-    <SafeAreaView style={s.root}>
+    <SafeAreaView style={[s.root, { backgroundColor: theme.background }]}>
       <View style={s.confirmWrap}>
         <View style={s.confirmIcon}>
-          <Ionicons name="checkmark-circle" size={64} color="#3D8E62" />
+          <Ionicons name="checkmark-circle" size={64} color={theme.primary} />
         </View>
-        <Text style={s.confirmTitle}>Expense added!</Text>
-        <Text style={s.confirmSub}>
+        <Text style={[s.confirmTitle, { color: theme.text }]}>Expense added!</Text>
+        <Text style={[s.confirmSub, { color: theme.textTertiary }]}>
           ${total.toFixed(2)} · {description || "Expense"} · split with {targets.map(t => t.name).join(", ")}
           {recurring !== "none" ? ` · repeats ${recurring}` : ""}
         </Text>
-        <TouchableOpacity style={s.confirmBtn} onPress={() => { nav.back(); setTimeout(() => router.push("/(tabs)/shared"), 100); }}>
+        <TouchableOpacity style={[s.confirmBtn, { backgroundColor: theme.primary }]} onPress={() => { nav.back(); setTimeout(() => router.push("/(tabs)/shared"), 100); }}>
           <Ionicons name="people" size={18} color="#fff" />
           <Text style={s.confirmBtnText}>View in Shared</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.confirmBtnOutline} onPress={() => { setStep(1); setTargets([]); setAmount(""); setDescription(""); setRecurring("none"); setSplitMethod("equal"); setCustomSplits({}); setError(null); }}>
-          <Ionicons name="add" size={18} color="#3D8E62" />
-          <Text style={s.confirmBtnOutlineText}>Add another</Text>
+        <TouchableOpacity style={[s.confirmBtnOutline, { borderColor: theme.primary }]} onPress={() => { setStep(1); setTargets([]); setAmount(""); setDescription(""); setRecurring("none"); setSplitMethod("equal"); setCustomSplits({}); setError(null); }}>
+          <Ionicons name="add" size={18} color={theme.primary} />
+          <Text style={[s.confirmBtnOutlineText, { color: theme.primary }]}>Add another</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => nav.back()} style={{ paddingVertical: 12 }}>
-          <Text style={{ fontSize: 14, color: "#9CA3AF", fontWeight: "600" }}>Close</Text>
+          <Text style={{ fontSize: 14, color: theme.textQuaternary, fontWeight: "600" }}>Close</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 
-  // ════════════════════════════════
-  // Step 2 — Amount + Split
-  // ════════════════════════════════
+  // Step 2 -- Amount + Split
   return (
-    <SafeAreaView style={s.root}>
+    <SafeAreaView style={[s.root, { backgroundColor: theme.background }]}>
       <View style={s.bar}>
-        <TouchableOpacity onPress={() => setStep(1)} hitSlop={12}><Ionicons name="chevron-back" size={24} color="#1F2937" /></TouchableOpacity>
-        <Text style={s.barTitle}>Amount</Text>
-        <TouchableOpacity onPress={save} style={[s.pill, (!amount || saving) && s.pillOff]} disabled={!amount || saving}>
+        <TouchableOpacity onPress={() => setStep(1)} hitSlop={12}><Ionicons name="chevron-back" size={24} color={theme.text} /></TouchableOpacity>
+        <Text style={[s.barTitle, { color: theme.text }]}>Amount</Text>
+        <TouchableOpacity onPress={save} style={[s.pill, { backgroundColor: theme.primary }, (!amount || saving) && s.pillOff]} disabled={!amount || saving}>
           <Text style={s.pillText}>{saving ? "…" : "Done"}</Text>
           <Ionicons name="checkmark" size={14} color="#fff" />
         </TouchableOpacity>
       </View>
 
       {targets.length > 0 && (
-        <View style={s.chipBar}>
-          <Text style={s.chipBarLabel}>Splitting with:</Text>
-          <Text style={s.chipBarNames}>{targets.map(t => t.name).join(", ")}</Text>
+        <View style={[s.chipBar, { backgroundColor: theme.primaryLight }]}>
+          <Text style={[s.chipBarLabel, { color: theme.textTertiary }]}>Splitting with:</Text>
+          <Text style={[s.chipBarNames, { color: theme.primary }]}>{targets.map(t => t.name).join(", ")}</Text>
         </View>
       )}
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}>
         {/* Big amount */}
         <View style={s.amtWrap}>
-          <Text style={s.amtSign}>$</Text>
-          <TextInput ref={amountRef} style={s.amtInput} value={amount} onChangeText={t => { const c = t.replace(/[^0-9.]/g, ""); if (c.split(".").length <= 2 && (c.split(".")[1]?.length ?? 0) <= 2) setAmount(c); }} placeholder="0" placeholderTextColor="#E5E7EB" keyboardType="decimal-pad" maxLength={10} />
+          <Text style={[s.amtSign, { color: theme.textQuaternary }]}>$</Text>
+          <TextInput ref={amountRef} style={[s.amtInput, { color: theme.text }]} value={amount} onChangeText={t => { const c = t.replace(/[^0-9.]/g, ""); if (c.split(".").length <= 2 && (c.split(".")[1]?.length ?? 0) <= 2) setAmount(c); }} placeholder="0" placeholderTextColor={theme.border} keyboardType="decimal-pad" maxLength={10} />
         </View>
 
         {/* Split method pills */}
         <View style={s.splitRow}>
           {SPLITS.map(o => (
-            <TouchableOpacity key={o.key} style={[s.splitBtn, splitMethod === o.key && s.splitBtnOn]} onPress={() => pickSplit(o.key)}>
-              <Ionicons name={o.icon as any} size={14} color={splitMethod === o.key ? "#fff" : "#6B7280"} />
-              <Text style={[s.splitLabel, splitMethod === o.key && { color: "#fff" }]}>{o.label}</Text>
+            <TouchableOpacity key={o.key} style={[s.splitBtn, { backgroundColor: theme.surfaceTertiary }, splitMethod === o.key && { backgroundColor: theme.primary }]} onPress={() => pickSplit(o.key)}>
+              <Ionicons name={o.icon as any} size={14} color={splitMethod === o.key ? "#fff" : theme.textTertiary} />
+              <Text style={[s.splitLabel, { color: theme.textTertiary }, splitMethod === o.key && { color: "#fff" }]}>{o.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -278,64 +274,64 @@ export default function AddExpenseScreen() {
         {/* Equal info */}
         {splitMethod === "equal" && total > 0 && (
           <View style={s.eqBadge}>
-            <Text style={s.eqText}>${(total / people.length).toFixed(2)}/person · {people.length} people</Text>
+            <Text style={[s.eqText, { color: theme.primary, backgroundColor: theme.primaryLight }]}>${(total / people.length).toFixed(2)}/person · {people.length} people</Text>
           </View>
         )}
 
         {/* Custom breakdown */}
         {splitMethod !== "equal" && (
-          <View style={s.bkCard}>
+          <View style={[s.bkCard, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
             <View style={s.bkHeader}>
-              <Text style={s.bkTitle}>{splitMethod === "exact" ? "Exact amounts" : splitMethod === "percent" ? "Percentages" : "Share ratios"}</Text>
+              <Text style={[s.bkTitle, { color: theme.textTertiary }]}>{splitMethod === "exact" ? "Exact amounts" : splitMethod === "percent" ? "Percentages" : "Share ratios"}</Text>
               {splitMethod === "exact" && total > 0 && (
-                <Text style={[s.bkBadge, !valid && { color: "#DC2626" }]}>
+                <Text style={[s.bkBadge, { color: theme.primary }, !valid && { color: theme.error }]}>
                   {Math.abs(total - shareSum) < 0.01 ? "✓" : shareSum > total ? `$${(shareSum - total).toFixed(2)} over` : `$${(total - shareSum).toFixed(2)} left`}
                 </Text>
               )}
             </View>
             {people.map((p, i) => (
-              <View key={p.key} style={[s.bkRow, i < people.length - 1 && { borderBottomWidth: 1, borderBottomColor: "#F5F5F5" }]}>
-                <View style={[s.bkDot, { backgroundColor: p.key === "_you" ? "#1F2937" : C[(i - 1) % C.length] }]} />
-                <Text style={s.bkName} numberOfLines={1}>{p.name}</Text>
-                <View style={s.bkInputWrap}>
-                  {splitMethod === "exact" && <Text style={s.bkPre}>$</Text>}
+              <View key={p.key} style={[s.bkRow, i < people.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.borderLight }]}>
+                <View style={[s.bkDot, { backgroundColor: p.key === "_you" ? theme.text : C[(i - 1) % C.length] }]} />
+                <Text style={[s.bkName, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
+                <View style={[s.bkInputWrap, { backgroundColor: theme.inputBackground, borderColor: theme.borderLight }]}>
+                  {splitMethod === "exact" && <Text style={[s.bkPre, { color: theme.textQuaternary }]}>$</Text>}
                   <TextInput
-                    style={s.bkInput}
+                    style={[s.bkInput, { color: theme.text }]}
                     value={customSplits[p.key] ?? ""}
                     onChangeText={v => setCustomSplits(prev => ({ ...prev, [p.key]: v.replace(/[^0-9.]/g, "") }))}
                     keyboardType="decimal-pad"
                     placeholder={splitMethod === "shares" ? "1" : "0"}
-                    placeholderTextColor="#D1D5DB"
+                    placeholderTextColor={theme.inputPlaceholder}
                   />
-                  {splitMethod === "percent" && <Text style={s.bkSuf}>%</Text>}
-                  {splitMethod === "shares" && <Text style={s.bkSuf}>×</Text>}
+                  {splitMethod === "percent" && <Text style={[s.bkSuf, { color: theme.textQuaternary }]}>%</Text>}
+                  {splitMethod === "shares" && <Text style={[s.bkSuf, { color: theme.textQuaternary }]}>×</Text>}
                 </View>
-                {total > 0 && <Text style={s.bkShare}>${shares.find(x => x.key === p.key)?.share.toFixed(2)}</Text>}
+                {total > 0 && <Text style={[s.bkShare, { color: theme.textSecondary }]}>${shares.find(x => x.key === p.key)?.share.toFixed(2)}</Text>}
               </View>
             ))}
           </View>
         )}
 
         {/* Description */}
-        <View style={s.descWrap}>
-          <Ionicons name="create-outline" size={18} color="#9CA3AF" />
-          <TextInput style={s.descInput} value={description} onChangeText={setDescription} placeholder="What's it for?" placeholderTextColor="#C4C4C4" returnKeyType="done" onSubmitEditing={save} />
+        <View style={[s.descWrap, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+          <Ionicons name="create-outline" size={18} color={theme.textQuaternary} />
+          <TextInput style={[s.descInput, { color: theme.text }]} value={description} onChangeText={setDescription} placeholder="What's it for?" placeholderTextColor={theme.inputPlaceholder} returnKeyType="done" onSubmitEditing={save} />
         </View>
 
         {/* Recurring option */}
         <View style={s.recurWrap}>
-          <Ionicons name="repeat" size={16} color={recurring !== "none" ? "#3D8E62" : "#9CA3AF"} />
-          <Text style={[s.recurLabel, recurring !== "none" && { color: "#3D8E62" }]}>Repeat</Text>
+          <Ionicons name="repeat" size={16} color={recurring !== "none" ? theme.primary : theme.textQuaternary} />
+          <Text style={[s.recurLabel, { color: theme.textQuaternary }, recurring !== "none" && { color: theme.primary }]}>Repeat</Text>
           <View style={s.recurOptions}>
             {([["none", "Off"], ["weekly", "Weekly"], ["biweekly", "Biweekly"], ["monthly", "Monthly"]] as const).map(([val, label]) => (
-              <TouchableOpacity key={val} style={[s.recurChip, recurring === val && s.recurChipOn]} onPress={() => setRecurring(val)}>
-                <Text style={[s.recurChipText, recurring === val && s.recurChipTextOn]}>{label}</Text>
+              <TouchableOpacity key={val} style={[s.recurChip, { backgroundColor: theme.surfaceTertiary }, recurring === val && { backgroundColor: theme.primary }]} onPress={() => setRecurring(val)}>
+                <Text style={[s.recurChipText, { color: theme.textTertiary }, recurring === val && { color: "#fff" }]}>{label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {error && <Text style={s.err}>{error}</Text>}
+        {error && <Text style={[s.err, { color: theme.error }]}>{error}</Text>}
       </ScrollView>
     </SafeAreaView>
   );

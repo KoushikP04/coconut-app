@@ -6,6 +6,7 @@ import {
   ViewStyle,
   StyleProp,
 } from "react-native";
+import { useTheme } from "../lib/theme-context";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -105,6 +106,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonProps) {
+  const { theme } = useTheme();
   const opacity = useSharedValue(0.3);
 
   useEffect(() => {
@@ -129,7 +131,7 @@ export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonPro
           width: width as any,
           height,
           borderRadius,
-          backgroundColor: colors.border,
+          backgroundColor: theme.skeletonBase ?? colors.border,
         },
         animatedStyle,
         style,
@@ -141,14 +143,15 @@ export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonPro
 // ─── Skeleton screens ───
 
 export function SharedSkeletonScreen() {
+  const { theme } = useTheme();
   return (
-    <View style={sk.container}>
+    <View style={[sk.container, { backgroundColor: theme.background }]}>
       <View style={sk.pad}>
         <View style={sk.headerRow}>
           <Skeleton width={100} height={28} borderRadius={8} />
           <Skeleton width={90} height={36} borderRadius={20} />
         </View>
-        <View style={sk.card}>
+        <View style={[sk.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
           <View style={sk.cardRow}>
             <Skeleton width={120} height={16} />
             <Skeleton width={80} height={28} borderRadius={6} />
@@ -166,7 +169,7 @@ export function SharedSkeletonScreen() {
         </View>
         <Skeleton width="100%" height={40} borderRadius={12} style={{ marginBottom: 16 }} />
         {[0, 1, 2, 3, 4].map(i => (
-          <View key={i} style={sk.row}>
+          <View key={i} style={[sk.row, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
             <Skeleton width={40} height={40} borderRadius={20} />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Skeleton width={120 + i * 10} height={16} />
@@ -181,8 +184,9 @@ export function SharedSkeletonScreen() {
 }
 
 export function PersonSkeletonScreen() {
+  const { theme } = useTheme();
   return (
-    <View style={sk.container}>
+    <View style={[sk.container, { backgroundColor: theme.background }]}>
       <View style={sk.pad}>
         <View style={[sk.headerRow, { marginBottom: 24 }]}>
           <Skeleton width={56} height={56} borderRadius={28} />
