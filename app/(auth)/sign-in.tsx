@@ -20,7 +20,7 @@ import { useTheme } from "../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
 
 const SIGN_IN_TIMEOUT_MS = 20000;
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-app.dev";
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
   const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };

@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useAuth } from "@clerk/expo";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-app.dev";
 const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
 
 function unauthResponse() {

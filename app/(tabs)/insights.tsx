@@ -17,7 +17,7 @@ import { useGroupsSummary } from "../../hooks/useGroups";
 import { useTheme } from "../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-app.dev";
 
 function deriveMonthlySpend(transactions: { amount: number; date: string }[]): number {
   const thisMonth = new Date().toISOString().slice(0, 7);

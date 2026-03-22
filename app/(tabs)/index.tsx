@@ -33,7 +33,7 @@ import { InsightsSwipeModal } from "../../components/InsightsSwipeModal";
 import { TapToPayBanner } from "../../components/TapToPayBanner";
 import { colors, font, fontSize as FS, shadow, radii, space, card, cardFlat, type as T } from "../../lib/theme";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-app.dev";
 const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
 
 const SEARCH_CHIPS = [

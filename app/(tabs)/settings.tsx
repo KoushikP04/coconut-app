@@ -21,7 +21,7 @@ import { useTheme } from "../../lib/theme-context";
 import type { ThemeMode } from "../../lib/colors";
 import { colors, font, fontSize, shadow, radii, space, type as T } from "../../lib/theme";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-app.dev";
 
 type PlaidAccount = {
   account_id: string;
