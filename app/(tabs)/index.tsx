@@ -592,7 +592,7 @@ export default function HomeScreen() {
   const webLoginUrl = `${API_URL.replace(/\/$/, "")}/login?redirect_url=${encodeURIComponent(returnToAppUrl)}`;
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await (sessionId ? signOut({ sessionId }) : signOut());
     } catch (e) {
       console.error("[home] signOut failed:", e);
     }

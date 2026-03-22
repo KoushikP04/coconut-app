@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useUser, useClerk } from "@clerk/expo";
+import { useUser, useClerk, useAuth } from "@clerk/expo";
 import { useIsFocused } from "@react-navigation/native";
 import { useApiFetch } from "../../lib/api";
 import { useTransactions } from "../../hooks/useTransactions";
@@ -40,6 +40,7 @@ const THEME_OPTIONS: { key: ThemeMode; label: string }[] = [
 export default function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
   const { user } = useUser();
+  const { sessionId } = useAuth();
   const { signOut } = useClerk();
   const apiFetch = useApiFetch();
   const { linked } = useTransactions();
@@ -174,9 +175,19 @@ export default function SettingsScreen() {
   };
 
   const handleSignOut = async () => {
+    if (!signOut) return;
     setSigningOut(true);
     try {
-      await signOut?.();
+      const p = sessionId ? signOut({ sessionId }) : signOut();
+      await Promise.race([
+        p,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Sign out timed out")), 15_000),
+        ),
+      ]);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Sign out failed";
+      Alert.alert("Sign out", msg === "Sign out timed out" ? "Sign out is taking too long. Try again." : msg);
     } finally {
       setSigningOut(false);
     }
