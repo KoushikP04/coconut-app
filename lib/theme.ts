@@ -2,6 +2,50 @@ import { Platform, TextStyle, ViewStyle } from "react-native";
 
 // ── Colors ──────────────────────────────────────────────────────────────────
 
+/**
+ * Dark shell — aligned to `Create design prototype (1)/src/app/pages/MobileAppPage.tsx`
+ * Warm charcoal stack + money green/red. Brand CTAs stay Coconut `colors.primary`.
+ */
+export const darkUI = {
+  // Premium neutral dark shell (less brown, cleaner contrast).
+  bg: "#10141B",
+  bgElevated: "#151B24",
+  card: "#1B222D",
+  cardHover: "#222B38",
+  /** Prototype card3 — inputs / numpad tiles */
+  cardElevated: "#2A3545",
+  stroke: "#344255",
+  strokeSoft: "#2A3442",
+  /** Row dividers inside grouped cards (prototype `sep`) */
+  sep: "#2A3442",
+  label: "#F5F8FF",
+  /** Secondary body / empty-state titles — readable on #181410 / cards */
+  labelSecondary: "#D3DCEC",
+  /** Subtitles, meta lines, inactive tab icons — must stay legible on warm dark bg */
+  labelMuted: "#99A8C0",
+  /** Money semantics — prototype `green` / `red` */
+  moneyIn: "#2ECC8A",
+  moneyOut: "#F87171",
+  moneyInBg: "#153325",
+  moneyOutBg: "#3A1A1E",
+} as const;
+
+/** Extra tokens from the same prototype (accent there is gold; app uses `colors.primary` for CTAs). */
+export const prototype = {
+  green: "#2ECC8A",
+  greenBg: "#153325",
+  greenMid: "#1F4A36",
+  red: "#F87171",
+  redBg: "#3A1A1E",
+  sep: "#2A3442",
+  card2: "#222B38",
+  card3: "#2A3545",
+  blue: "#60A5FA",
+  blueBg: "#162741",
+  amber: "#F59E0B",
+  amberBg: "#3D3218",
+} as const;
+
 export const colors = {
   // Brand
   primary: "#3D8E62",

@@ -18,22 +18,33 @@ import { usePersonDetail } from "../../../hooks/useGroups";
 import { useDemoMode } from "../../../lib/demo-mode-context";
 import { useDemoData } from "../../../lib/demo-context";
 import { PersonSkeletonScreen, haptic } from "../../../components/ui";
-import { useTheme } from "../../../lib/theme-context";
-import { colors, font, fontSize, shadow, radii, space } from "../../../lib/theme";
+import { MerchantLogo } from "../../../components/merchant/MerchantLogo";
+import { colors, font, radii, darkUI, prototype } from "../../../lib/theme";
 
 const MEMBER_COLORS = ["#3D8E62", "#4A6CF7", "#E8507A", "#F59E0B", "#10A37F", "#8B5CF6"];
 
-function MemberAvatar({ name, size = 40 }: { name: string; size?: number }) {
-  const idx = name.charCodeAt(0) % MEMBER_COLORS.length;
+function MemberAvatar({ name, size = 76 }: { name: string; size?: number }) {
+  const hue = MEMBER_COLORS[name.charCodeAt(0) % MEMBER_COLORS.length];
   return (
-    <View style={[s.avatar, { width: size, height: size, borderRadius: size * 0.3, backgroundColor: MEMBER_COLORS[idx] }]}>
-      <Text style={[s.avatarText, { fontSize: size * 0.35 }]}>{name.slice(0, 2).toUpperCase()}</Text>
+    <View
+      style={[
+        s.avatarRing,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: `${hue}28`,
+          borderColor: `${hue}44`,
+        },
+      ]}
+    >
+      <Text style={[s.avatarText, { color: hue, fontSize: size * 0.32 }]}>{name.slice(0, 2).toUpperCase()}</Text>
     </View>
   );
 }
 
+/** Friend detail — aligned to `MobileAppPage` `FriendDetail` + existing settlement APIs */
 export default function PersonScreen() {
-  const { theme } = useTheme();
   const { key } = useLocalSearchParams<{ key: string }>();
   const apiFetch = useApiFetch();
   const { isDemoOn } = useDemoMode();
@@ -47,7 +58,11 @@ export default function PersonScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try { await refetch(true); } finally { setRefreshing(false); }
+    try {
+      await refetch(true);
+    } finally {
+      setRefreshing(false);
+    }
   }, [refetch]);
 
   if (!detail) {
@@ -56,7 +71,10 @@ export default function PersonScreen() {
 
   const handleRequest = async () => {
     if (detail.balance <= 0) return;
-    if (isDemoOn) { Alert.alert("Demo", "Payment request sent!"); return; }
+    if (isDemoOn) {
+      Alert.alert("Demo", "Payment request sent!");
+      return;
+    }
     setRequestingPayment(true);
     try {
       const se = (detail.settlements ?? [])[0];
@@ -79,12 +97,19 @@ export default function PersonScreen() {
           title: "Payment request",
         });
       }
-    } finally { setRequestingPayment(false); }
+    } finally {
+      setRequestingPayment(false);
+    }
   };
 
   const handleMarkPaid = () => {
     if ((detail.settlements ?? []).length === 0) return;
-    if (isDemoOn && key) { haptic.success(); demo.settlePerson(key); router.back(); return; }
+    if (isDemoOn && key) {
+      haptic.success();
+      demo.settlePerson(key);
+      router.back();
+      return;
+    }
     Alert.alert("Mark as paid", `Mark $${Math.abs(detail.balance).toFixed(2)} as paid?`, [
       { text: "Cancel", style: "cancel" },
       {
@@ -105,8 +130,11 @@ export default function PersonScreen() {
               });
             }
             router.back();
-          } catch { Alert.alert("Error", "Could not record settlement"); }
-          finally { setRecordingSettlement(false); }
+          } catch {
+            Alert.alert("Error", "Could not record settlement");
+          } finally {
+            setRecordingSettlement(false);
+          }
         },
       },
     ]);
@@ -114,7 +142,10 @@ export default function PersonScreen() {
 
   const handleTapToPay = () => {
     if (detail.balance <= 0) return;
-    if (isDemoOn) { Alert.alert("Demo", "Opening Tap to Pay..."); return; }
+    if (isDemoOn) {
+      Alert.alert("Demo", "Opening Tap to Pay...");
+      return;
+    }
     const se = (detail.settlements ?? [])[0];
     if (!se) return;
     router.push({
@@ -128,28 +159,54 @@ export default function PersonScreen() {
     });
   };
 
+  const pos = detail.balance > 0;
+
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: theme.background }]} edges={["top"]}>
+    <SafeAreaView style={s.container} edges={["top"]}>
+      <View style={s.topBar}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backRow} hitSlop={12}>
+          <Ionicons name="chevron-back" size={20} color={colors.primary} />
+          <Text style={s.backText}>Friends</Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
-        <View style={s.header}>
-          <MemberAvatar name={detail.displayName} size={56} />
-          <View style={s.headerInfo}>
-            <Text style={[s.headerName, { color: theme.text }]}>{detail.displayName}</Text>
-            <Text style={[
-              s.headerBalance,
-              detail.balance > 0 && { color: theme.positive },
-              detail.balance < 0 && { color: "#B45309" },
-              detail.balance === 0 && { color: theme.textQuaternary },
-            ]}>
+        <View style={s.hero}>
+          <MemberAvatar name={detail.displayName} />
+          <Text style={s.heroName}>{detail.displayName}</Text>
+          <Text style={s.heroMeta}>
+            {detail.activity.length} shared expense{detail.activity.length !== 1 ? "s" : ""}
+          </Text>
+          <View
+            style={[
+              s.balancePill,
+              pos ? { backgroundColor: prototype.greenBg, borderColor: `${prototype.green}44` } : detail.balance < 0
+                ? { backgroundColor: prototype.redBg, borderColor: `${prototype.red}44` }
+                : { backgroundColor: darkUI.card, borderColor: darkUI.stroke },
+            ]}
+          >
+            <Text
+              style={[
+                s.balanceAmt,
+                pos ? { color: prototype.green } : detail.balance < 0 ? { color: prototype.red } : { color: darkUI.labelMuted },
+              ]}
+            >
+              {detail.balance === 0 ? "$0.00" : `${pos ? "+" : detail.balance < 0 ? "−" : ""}$${Math.abs(detail.balance).toFixed(2)}`}
+            </Text>
+            <Text
+              style={[
+                s.balanceLbl,
+                pos ? { color: prototype.green } : detail.balance < 0 ? { color: prototype.red } : { color: darkUI.labelMuted },
+              ]}
+            >
               {detail.balance > 0
-                ? `Owes you $${detail.balance.toFixed(2)}`
+                ? `${detail.displayName.split(" ")[0] ?? "They"} owes you`
                 : detail.balance < 0
-                  ? `You owe $${Math.abs(detail.balance).toFixed(2)}`
+                  ? `You owe ${detail.displayName.split(" ")[0] ?? "them"}`
                   : "All settled up"}
             </Text>
           </View>
@@ -159,49 +216,69 @@ export default function PersonScreen() {
           <View style={s.actions}>
             {detail.balance > 0 && (
               <>
-                <TouchableOpacity style={[s.btn, { backgroundColor: theme.primary }]} onPress={handleRequest} disabled={requestingPayment} activeOpacity={0.7}>
-                  {requestingPayment ? <ActivityIndicator size="small" color="#fff" /> : (
-                    <><Ionicons name="send" size={16} color="#fff" /><Text style={s.btnText}>Request</Text></>
+                <TouchableOpacity style={s.btnPrimary} onPress={handleRequest} disabled={requestingPayment} activeOpacity={0.7}>
+                  {requestingPayment ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={16} color="#fff" />
+                      <Text style={s.btnText}>Request</Text>
+                    </>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.btn, s.btnTap]} onPress={handleTapToPay} activeOpacity={0.7}>
+                <TouchableOpacity style={s.btnBlue} onPress={handleTapToPay} activeOpacity={0.7}>
                   <Ionicons name="phone-portrait-outline" size={16} color="#fff" />
                   <Text style={s.btnText}>Tap to Pay</Text>
                 </TouchableOpacity>
               </>
             )}
-            <TouchableOpacity style={[s.btn, { borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface }]} onPress={handleMarkPaid} disabled={recordingSettlement} activeOpacity={0.7}>
-              {recordingSettlement ? <ActivityIndicator size="small" color={theme.textSecondary} /> : (
-                <Text style={[s.btnSecondaryText, { color: theme.textSecondary }]}>Mark paid</Text>
+            <TouchableOpacity style={s.btnGhost} onPress={handleMarkPaid} disabled={recordingSettlement} activeOpacity={0.7}>
+              {recordingSettlement ? (
+                <ActivityIndicator size="small" color={darkUI.labelSecondary} />
+              ) : (
+                <Text style={s.btnGhostText}>Mark paid</Text>
               )}
             </TouchableOpacity>
           </View>
         )}
 
         {detail.balance === 0 && detail.activity.length > 0 && (
-          <View style={[s.settledBadge, { backgroundColor: theme.primaryLight }]}>
-            <Ionicons name="checkmark-circle" size={20} color={theme.primaryDark} />
-            <Text style={[s.settledText, { color: theme.primaryDark }]}>All settled up with {detail.displayName}</Text>
+          <View style={s.settledBadge}>
+            <Ionicons name="checkmark-circle" size={20} color={prototype.green} />
+            <Text style={s.settledText}>All settled up with {detail.displayName}</Text>
           </View>
         )}
 
-        <Text style={[s.section, { color: theme.textTertiary }]}>Transactions</Text>
+        <Text style={s.section}>Shared expenses</Text>
         {detail.activity.length === 0 ? (
-          <Text style={[s.emptyText, { color: theme.textQuaternary }]}>No shared transactions yet.</Text>
+          <Text style={s.emptyText}>No shared transactions yet.</Text>
         ) : (
-          <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
+          <View style={s.card}>
             {detail.activity.map((a, i) => (
-              <View key={a.id} style={[s.txRow, i < detail.activity.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.borderLight }]}>
-                <View style={s.txInfo}>
-                  <Text style={[s.txMerchant, { color: theme.text }]}>{a.merchant}</Text>
-                  <Text style={[s.txGroup, { color: theme.textQuaternary }]}>{a.groupName}</Text>
+              <View key={a.id}>
+                <View style={s.txRow}>
+                  <MerchantLogo merchantName={a.merchant} size={38} backgroundColor={darkUI.bg} borderColor="transparent" />
+                  <View style={s.txInfo}>
+                    <Text style={s.txMerchant}>{a.merchant}</Text>
+                    <Text style={s.txGroup}>{a.groupName}</Text>
+                  </View>
+                  <View style={s.txRight}>
+                    <Text
+                      style={[
+                        s.txAmt,
+                        a.effectOnBalance > 0
+                          ? { color: prototype.green }
+                          : a.effectOnBalance < 0
+                            ? { color: prototype.red }
+                            : { color: darkUI.labelMuted },
+                      ]}
+                    >
+                      {a.effectOnBalance > 0 ? "+" : a.effectOnBalance < 0 ? "-" : ""}${Math.abs(a.effectOnBalance).toFixed(2)}
+                    </Text>
+                    <Text style={s.txTotal}>${a.amount.toFixed(2)} total</Text>
+                  </View>
                 </View>
-                <View style={s.txRight}>
-                  <Text style={[s.txAmt, a.effectOnBalance > 0 ? { color: theme.positive } : a.effectOnBalance < 0 ? { color: "#B45309" } : { color: theme.textQuaternary }]}>
-                    {a.effectOnBalance > 0 ? "+" : a.effectOnBalance < 0 ? "-" : ""}${Math.abs(a.effectOnBalance).toFixed(2)}
-                  </Text>
-                  <Text style={[s.txTotal, { color: theme.textQuaternary }]}>${a.amount.toFixed(2)} total</Text>
-                </View>
+                {i < detail.activity.length - 1 ? <View style={s.rowSep} /> : null}
               </View>
             ))}
           </View>
@@ -212,37 +289,107 @@ export default function PersonScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: darkUI.bg },
+  topBar: { paddingHorizontal: 8, paddingTop: 4 },
+  backRow: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 8, paddingHorizontal: 8 },
+  backText: { fontSize: 15, fontFamily: font.semibold, color: colors.primary },
   scroll: { flex: 1 },
-  content: { padding: 20, paddingBottom: 100 },
-  header: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 24 },
-  headerInfo: { flex: 1 },
-  headerName: { fontSize: 22, fontWeight: "700", fontFamily: font.bold, color: colors.text },
-  headerBalance: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, marginTop: 4 },
+  content: { paddingHorizontal: 20, paddingBottom: 120 },
+  hero: { alignItems: "center", paddingTop: 8, paddingBottom: 20 },
+  avatarRing: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  avatarText: { fontFamily: font.bold },
+  heroName: { fontSize: 20, fontFamily: font.black, color: darkUI.label, textAlign: "center" },
+  heroMeta: { fontSize: 12, fontFamily: font.regular, color: darkUI.labelMuted, marginTop: 4 },
+  balancePill: {
+    marginTop: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  balanceAmt: { fontSize: 30, fontFamily: font.black, letterSpacing: -1 },
+  balanceLbl: { fontSize: 12, marginTop: 4, opacity: 0.85, fontFamily: font.medium },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 24 },
-  btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, paddingHorizontal: 18, borderRadius: radii.md },
-  btnPrimary: { backgroundColor: colors.primary },
-  btnTap: { backgroundColor: colors.blue },
-  btnSecondary: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  btnPrimary: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: radii.md,
+    backgroundColor: colors.primary,
+  },
+  btnBlue: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: radii.md,
+    backgroundColor: prototype.blue,
+  },
+  btnGhost: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: darkUI.stroke,
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   btnText: { color: "#fff", fontWeight: "600", fontFamily: font.semibold, fontSize: 14 },
-  btnSecondaryText: { color: colors.textSecondary, fontWeight: "500", fontFamily: font.medium, fontSize: 14 },
-  settledBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primaryLight, padding: 14, borderRadius: radii.md, marginBottom: 24 },
-  settledText: { fontSize: 14, color: colors.primaryDark, fontWeight: "600", fontFamily: font.semibold },
-  section: { fontSize: 13, fontWeight: "700", fontFamily: font.bold, color: colors.textTertiary, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 },
-  emptyText: { fontSize: 14, fontFamily: font.regular, color: colors.textMuted },
-  card: { backgroundColor: colors.surface, borderRadius: radii.lg, overflow: "hidden", ...shadow.md },
-  txRow: { flexDirection: "row", alignItems: "center", padding: 14 },
-  txBorder: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
-  txInfo: { flex: 1 },
-  txMerchant: { fontSize: 15, fontWeight: "600", fontFamily: font.semibold, color: colors.text },
-  txGroup: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
+  btnGhostText: { color: darkUI.labelSecondary, fontFamily: font.semibold, fontSize: 14 },
+  settledBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: prototype.greenBg,
+    padding: 14,
+    borderRadius: radii.md,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: `${prototype.green}33`,
+  },
+  settledText: { fontSize: 14, color: prototype.green, fontWeight: "600", fontFamily: font.semibold },
+  section: {
+    fontSize: 11,
+    fontFamily: font.extrabold,
+    color: darkUI.labelMuted,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    marginBottom: 10,
+  },
+  emptyText: { fontSize: 14, fontFamily: font.regular, color: darkUI.labelMuted },
+  card: {
+    backgroundColor: darkUI.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: darkUI.stroke,
+    overflow: "hidden",
+  },
+  txRow: { flexDirection: "row", alignItems: "center", paddingVertical: 13, paddingHorizontal: 16 },
+  rowSep: { height: 1, backgroundColor: prototype.sep, marginLeft: 66 },
+  txEmoji: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: darkUI.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  txInfo: { flex: 1, marginLeft: 12 },
+  txMerchant: { fontSize: 14, fontFamily: font.semibold, color: darkUI.label },
+  txGroup: { fontSize: 12, fontFamily: font.regular, color: darkUI.labelMuted, marginTop: 2 },
   txRight: { alignItems: "flex-end" },
-  txAmt: { fontSize: 15, fontWeight: "700", fontFamily: font.bold },
-  txTotal: { fontSize: 12, fontFamily: font.regular, color: colors.textMuted, marginTop: 2 },
-  avatar: { justifyContent: "center", alignItems: "center" },
-  avatarText: { color: "#fff", fontWeight: "700", fontFamily: font.bold },
-  green: { color: colors.green },
-  amber: { color: colors.amber },
-  muted: { color: colors.textMuted },
+  txAmt: { fontSize: 15, fontFamily: font.bold },
+  txTotal: { fontSize: 12, fontFamily: font.regular, color: darkUI.labelMuted, marginTop: 2 },
 });

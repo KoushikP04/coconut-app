@@ -7,6 +7,8 @@ import { tokenCache } from "@clerk/expo/token-cache";
 import { AuthHandoffHandler } from "../components/AuthHandoffHandler";
 import { ThemeProvider, useTheme } from "../lib/theme-context";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { DemoModeProvider, useDemoMode } from "../lib/demo-mode-context";
+import { DemoProvider } from "../lib/demo-context";
 import {
   useFonts,
   Inter_400Regular,
@@ -37,6 +39,7 @@ const SKIP_AUTH = process.env.EXPO_PUBLIC_SKIP_AUTH === "true";
 function AuthSwitch() {
   const { isSignedIn, isLoaded } = useAuth();
   const { signOut } = useClerk();
+  const { isDemoOn, demoModeHydrated } = useDemoMode();
   const hasClearedSession = useRef(false);
   const instance = useMemo(() => {
     if (!publishableKey) return "missing";
@@ -69,7 +72,10 @@ function AuthSwitch() {
     );
   }
 
-  if (!isLoaded || !isSignedIn || (FORCE_SIGN_OUT_ON_LAUNCH && isSignedIn)) {
+  const waitingDemoHydration = !demoModeHydrated;
+  const forceAuthWhileSignedIn = FORCE_SIGN_OUT_ON_LAUNCH && isSignedIn;
+  const needRealSignIn = !isSignedIn && !isDemoOn;
+  if (waitingDemoHydration || !isLoaded || needRealSignIn || forceAuthWhileSignedIn) {
     return (
       <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -124,11 +130,15 @@ export default function RootLayout() {
         publishableKey={publishableKey ?? ""}
         tokenCache={tokenCache}
       >
-        <ErrorBoundary>
-          <StatusBarFromTheme />
-          <AuthHandoffHandler />
-          <AuthSwitch />
-        </ErrorBoundary>
+        <DemoModeProvider>
+          <DemoProvider>
+            <ErrorBoundary>
+              <StatusBarFromTheme />
+              <AuthHandoffHandler />
+              <AuthSwitch />
+            </ErrorBoundary>
+          </DemoProvider>
+        </DemoModeProvider>
       </ClerkProvider>
     </ThemeProvider>
   );

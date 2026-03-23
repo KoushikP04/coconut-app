@@ -32,7 +32,7 @@ export default {
         process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ||
         "pk_test_YWJzb2x1dGUtbGVtdXItNjguY2xlcmsuYWNjb3VudHMuZGV2JA",
       EXPO_PUBLIC_API_URL:
-        process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app",
+        process.env.EXPO_PUBLIC_API_URL || "https://coconut-app.dev",
       EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID:
         process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID,
       EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID:

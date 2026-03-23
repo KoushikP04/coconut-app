@@ -16,8 +16,9 @@ import { useSubscriptions } from "../../hooks/useSubscriptions";
 import { useGroupsSummary } from "../../hooks/useGroups";
 import { useTheme } from "../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
+import { MerchantLogo } from "../../components/merchant/MerchantLogo";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://coconut-app.dev";
 
 function deriveMonthlySpend(transactions: { amount: number; date: string }[]): number {
   const thisMonth = new Date().toISOString().slice(0, 7);
@@ -161,9 +162,12 @@ export default function InsightsScreen() {
           <View style={[styles.subList, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {subscriptions.map((sub) => (
               <View key={sub.id} style={[styles.subRow, { borderBottomColor: theme.borderLight }]}>
-                <View style={styles.subIcon}>
-                  <Ionicons name="refresh" size={16} color={colors.purple} />
-                </View>
+                <MerchantLogo
+                  merchantName={sub.merchant}
+                  size={36}
+                  backgroundColor={colors.purpleBg}
+                  borderColor={theme.borderLight}
+                />
                 <View style={styles.subInfo}>
                   <Text style={[styles.subMerchant, { color: theme.text }]} numberOfLines={1}>
                     {sub.merchant}

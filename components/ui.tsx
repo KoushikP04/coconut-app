@@ -5,17 +5,10 @@ import {
   StyleSheet,
   ViewStyle,
   StyleProp,
+  Animated,
+  Easing,
 } from "react-native";
 import { useTheme } from "../lib/theme-context";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-  withRepeat,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
 import { colors, font, radii, shadow } from "../lib/theme";
 
 let Haptics: any = null;
@@ -25,7 +18,7 @@ try {
 
 const canHaptic = !!Haptics?.impactAsync;
 
-// ─── Pressable with spring scale + haptic feedback ───
+// ─── Pressable with spring scale + haptic feedback (RN Animated — no Reanimated/Worklets) ───
 
 interface SnapPressProps {
   onPress: () => void;
@@ -44,27 +37,25 @@ export const SnapPress = React.memo(function SnapPress({
   haptic = "light",
   scaleDown = 0.97,
 }: SnapPressProps) {
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: disabled ? 0.4 : 1,
-  }));
+  const scale = useRef(new Animated.Value(1)).current;
 
   const pressIn = useCallback(() => {
-    scale.value = withSpring(scaleDown, {
-      damping: 15,
-      stiffness: 400,
-    });
-  }, [scaleDown]);
+    Animated.spring(scale, {
+      toValue: scaleDown,
+      useNativeDriver: true,
+      friction: 5,
+      tension: 400,
+    }).start();
+  }, [scale, scaleDown]);
 
   const pressOut = useCallback(() => {
-    scale.value = withSpring(1, {
-      damping: 12,
-      stiffness: 200,
-      mass: 0.8,
-    });
-  }, []);
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 6,
+      tension: 200,
+    }).start();
+  }, [scale]);
 
   const handlePress = useCallback(() => {
     if (disabled) return;
@@ -89,7 +80,12 @@ export const SnapPress = React.memo(function SnapPress({
       onPress={handlePress}
       disabled={disabled}
     >
-      <Animated.View style={[style, animatedStyle]}>
+      <Animated.View
+        style={[
+          style,
+          { transform: [{ scale }], opacity: disabled ? 0.4 : 1 },
+        ]}
+      >
         {children}
       </Animated.View>
     </Pressable>
@@ -107,33 +103,39 @@ interface SkeletonProps {
 
 export function Skeleton({ width, height, borderRadius = 8, style }: SkeletonProps) {
   const { theme } = useTheme();
-  const opacity = useSharedValue(0.3);
+  const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(0.7, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.3, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.7,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.3,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
     );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
 
   return (
     <Animated.View
       style={[
         {
-          width: width as any,
+          width: width as number | `${number}%`,
           height,
           borderRadius,
           backgroundColor: theme.skeletonBase ?? colors.border,
         },
-        animatedStyle,
+        { opacity },
         style,
       ]}
     />
@@ -168,7 +170,7 @@ export function SharedSkeletonScreen() {
           </View>
         </View>
         <Skeleton width="100%" height={40} borderRadius={12} style={{ marginBottom: 16 }} />
-        {[0, 1, 2, 3, 4].map(i => (
+        {[0, 1, 2, 3, 4].map((i) => (
           <View key={i} style={[sk.row, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
             <Skeleton width={40} height={40} borderRadius={20} />
             <View style={{ flex: 1, marginLeft: 12 }}>
@@ -201,7 +203,7 @@ export function PersonSkeletonScreen() {
           <Skeleton width={90} height={40} borderRadius={12} />
         </View>
         <Skeleton width={100} height={14} style={{ marginBottom: 12 }} />
-        {[0, 1, 2, 3].map(i => (
+        {[0, 1, 2, 3].map((i) => (
           <View key={i} style={sk.txRow}>
             <View style={{ flex: 1 }}>
               <Skeleton width={130 + i * 15} height={16} />
@@ -228,10 +230,11 @@ const sk = StyleSheet.create({
 
 // ─── Haptic helpers ───
 
-const noop = () => {};
 const safeHaptic = (fn: () => Promise<void>) => {
   if (!canHaptic) return;
-  try { fn().catch(() => {}); } catch {}
+  try {
+    fn().catch(() => {});
+  } catch {}
 };
 
 export const haptic = {

@@ -25,7 +25,7 @@ npx expo start
 ## Stripe Terminal (Tap to Pay) setup
 
 1. Ensure your coconut web app has `STRIPE_SECRET_KEY` in `.env.local`
-2. In the app, set `EXPO_PUBLIC_API_URL` to your deployed web URL (e.g. `https://coconut-lemon.vercel.app`)
+2. In the app, set `EXPO_PUBLIC_API_URL` to your deployed web URL (e.g. `https://coconut-app.dev`)
 3. Run `npx expo run:ios` on a physical iPhone (XS or later) or `run:android` on an NFC-enabled device
 
 ## Lock-in twin

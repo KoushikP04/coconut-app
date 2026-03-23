@@ -12,11 +12,14 @@ import {
   Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useSignUp } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 import { useTheme } from "../../lib/theme-context";
+import { useDemoMode } from "../../lib/demo-mode-context";
 import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
+import { CoconutMark } from "../../components/brand/CoconutMark";
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
   const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
@@ -26,6 +29,7 @@ function getClerkErrorMessage(e: unknown, fallback: string): string {
 
 export default function SignUpScreen() {
   const { theme } = useTheme();
+  const { setIsDemoOn } = useDemoMode();
   // Clerk v3 types changed but runtime still provides these properties
   const { isLoaded, signUp, setActive } = useSignUp() as unknown as {
     isLoaded: boolean;
@@ -107,7 +111,7 @@ export default function SignUpScreen() {
   const formDisabled = !isLoaded;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.surface }]} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -118,9 +122,14 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.decorWrap} pointerEvents="none">
+            <View style={[styles.decorBlob, styles.decorBlobA, { backgroundColor: theme.primaryLight }]} />
+            <View style={[styles.decorBlob, styles.decorBlobB, { backgroundColor: theme.accentMuted }]} />
+          </View>
+
           {/* Brand */}
           <View style={styles.brand}>
-            <Text style={styles.logo}>🥥</Text>
+            <CoconutMark size={76} elevated />
             <Text style={[styles.title, { color: theme.text }]}>Coconut</Text>
             <Text style={[styles.subtitle, { color: theme.textTertiary }]}>Create your account</Text>
           </View>
@@ -213,6 +222,17 @@ export default function SignUpScreen() {
             <Text style={[styles.swapText, { color: theme.textTertiary }]}>Already have an account? </Text>
             <Text style={[styles.swapLink, { color: theme.primary }]}>Sign in</Text>
           </Pressable>
+
+          <Pressable
+            style={styles.demoLink}
+            onPress={() => {
+              setIsDemoOn(true);
+              router.replace("/(tabs)");
+            }}
+          >
+            <Ionicons name="sparkles" size={16} color={theme.accent} style={{ marginRight: 6 }} />
+            <Text style={[styles.demoLinkText, { color: theme.accent }]}>Try demo without an account</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -228,12 +248,35 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 32,
     minHeight: "100%",
+    position: "relative",
+  },
+  decorWrap: {
+    ...StyleSheet.absoluteFillObject,
+    top: 0,
+    height: 280,
+    overflow: "hidden",
+  },
+  decorBlob: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.9,
+  },
+  decorBlobA: {
+    width: 200,
+    height: 200,
+    top: -60,
+    right: -50,
+  },
+  decorBlobB: {
+    width: 140,
+    height: 140,
+    top: 40,
+    left: -40,
   },
   brand: {
     alignItems: "center",
     marginBottom: 40,
   },
-  logo: { fontSize: 48, marginBottom: 12, fontFamily: font.regular },
   title: {
     fontSize: 26,
     fontWeight: "700",
@@ -328,6 +371,13 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   btnDisabled: { opacity: 0.6 },
+  demoLink: {
+    marginTop: 20,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  demoLinkText: { fontSize: 14, fontFamily: font.medium, textDecorationLine: "underline" },
   swapBtn: {
     flexDirection: "row",
     justifyContent: "center",

@@ -19,6 +19,13 @@ export interface Transaction {
   accountMask?: string | null;
   /** Account name for bank tag, e.g. "Chase Checking" */
   accountName?: string | null;
+  /** Linked email receipt (Gmail) matched to this bank charge */
+  hasReceipt?: boolean;
+  receiptMatchLine?: string;
+  /** Already added to a group split — hide from “split this” home strip */
+  alreadySplit?: boolean;
+  /** Internal `transactions.id` for APIs that need DB uuid */
+  dbId?: string;
 }
 
 export type PlaidStatus = "ok" | "unauthorized" | "not_linked";

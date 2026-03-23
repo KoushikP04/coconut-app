@@ -13,14 +13,17 @@ import {
   Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useSignIn } from "@clerk/expo/legacy";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 import { useTheme } from "../../lib/theme-context";
+import { useDemoMode } from "../../lib/demo-mode-context";
 import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
+import { CoconutMark } from "../../components/brand/CoconutMark";
 
 const SIGN_IN_TIMEOUT_MS = 20000;
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-app.dev";
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
   const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
@@ -44,6 +47,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 
 export default function SignInScreen() {
   const { theme } = useTheme();
+  const { setIsDemoOn } = useDemoMode();
   // Clerk v3 types changed but runtime still provides these properties
   const { isLoaded, signIn, setActive } = useSignIn() as unknown as {
     isLoaded: boolean;
@@ -144,7 +148,7 @@ export default function SignInScreen() {
   const canAttemptSignIn = email.trim().length > 0 && password.length > 0;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.surface }]} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -155,12 +159,44 @@ export default function SignInScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.decorWrap} pointerEvents="none">
+            <View style={[styles.decorBlob, styles.decorBlobA, { backgroundColor: theme.primaryLight }]} />
+            <View style={[styles.decorBlob, styles.decorBlobB, { backgroundColor: theme.accentMuted }]} />
+          </View>
+
           {/* Brand */}
           <View style={styles.brand}>
-            <Text style={styles.logo}>🥥</Text>
+            <CoconutMark size={76} elevated />
             <Text style={[styles.title, { color: theme.text }]}>Coconut</Text>
             <Text style={[styles.subtitle, { color: theme.textTertiary }]}>Sign in to your account</Text>
           </View>
+
+          <TouchableOpacity
+            style={[
+              styles.demoBtn,
+              {
+                borderColor: theme.accent,
+                backgroundColor: theme.surfaceSecondary,
+                borderWidth: 2,
+              },
+            ]}
+            onPress={() => {
+              setIsDemoOn(true);
+              router.replace("/(tabs)");
+            }}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.demoIconWrap, { backgroundColor: theme.accentMuted }]}>
+              <Ionicons name="sparkles" size={22} color={theme.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.demoBtnTitle, { color: theme.text }]}>Try demo — no sign-in</Text>
+              <Text style={[styles.demoBtnSub, { color: theme.textTertiary }]}>
+                Sample friends, splits & add-expense flow (simulator-friendly)
+              </Text>
+            </View>
+            <Text style={[styles.demoBtnChevron, { color: theme.accent }]}>→</Text>
+          </TouchableOpacity>
 
           {/* Primary: Google */}
           {(Platform.OS === "ios" || Platform.OS === "android") && (
@@ -262,12 +298,35 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 32,
     minHeight: "100%",
+    position: "relative",
+  },
+  decorWrap: {
+    ...StyleSheet.absoluteFillObject,
+    top: 0,
+    height: 280,
+    overflow: "hidden",
+  },
+  decorBlob: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.9,
+  },
+  decorBlobA: {
+    width: 200,
+    height: 200,
+    top: -60,
+    right: -50,
+  },
+  decorBlobB: {
+    width: 140,
+    height: 140,
+    top: 40,
+    left: -40,
   },
   brand: {
     alignItems: "center",
     marginBottom: 40,
   },
-  logo: { fontSize: 48, marginBottom: 12, fontFamily: font.regular },
   title: {
     fontSize: 26,
     fontWeight: "700",
@@ -281,6 +340,25 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     marginTop: 6,
   },
+  demoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: radii.lg,
+    marginBottom: 8,
+  },
+  demoIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  demoBtnTitle: { fontSize: 16, fontFamily: font.bold },
+  demoBtnSub: { fontSize: 13, fontFamily: font.regular, marginTop: 2, lineHeight: 18 },
+  demoBtnChevron: { fontSize: 18, fontFamily: font.semibold },
   googleBtn: {
     flexDirection: "row",
     alignItems: "center",

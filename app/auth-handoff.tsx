@@ -8,7 +8,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTheme } from "../lib/theme-context";
 
 const STUCK_TIMEOUT_MS = 5000;
-const WEB_APP_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") || "https://coconut-lemon.vercel.app";
+const WEB_APP_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, "") || "https://coconut-app.dev";
 
 /**
  * Handles coconut://auth-handoff?__clerk_ticket=X deep link.

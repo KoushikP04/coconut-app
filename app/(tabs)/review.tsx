@@ -22,6 +22,7 @@ import { useGroupsSummary } from "../../hooks/useGroups";
 import { useApiFetch } from "../../lib/api";
 import { colors, font, fontSize, shadow, radii, space, type as T } from "../../lib/theme";
 import * as SecureStore from "expo-secure-store";
+import { MerchantLogo } from "../../components/merchant/MerchantLogo";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
@@ -579,11 +580,13 @@ export default function ReviewScreen() {
             </View>
 
             <View style={s.txContent}>
-              <View style={[s.merchantCircle, { backgroundColor: hashColor(currentTx.merchant) + "18" }]}>
-                <Text style={[s.merchantInitial, { color: hashColor(currentTx.merchant) }]}>
-                  {currentTx.merchant.charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              <MerchantLogo
+                merchantName={currentTx.merchant}
+                size={56}
+                fallbackText={currentTx.merchant.charAt(0)}
+                backgroundColor={hashColor(currentTx.merchant) + "18"}
+                borderColor="transparent"
+              />
               <Text style={[T.subheading, { marginTop: space.lg }]}>{currentTx.merchant}</Text>
               <Text style={[T.amountLg, { marginTop: space.sm }]}>{fmtCurrency(currentTx.amount)}</Text>
               <View style={s.metaRow}>

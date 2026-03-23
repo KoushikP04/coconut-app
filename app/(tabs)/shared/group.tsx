@@ -20,6 +20,7 @@ import { useDemoMode } from "../../../lib/demo-mode-context";
 import { useDemoData } from "../../../lib/demo-context";
 import { useTheme } from "../../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii, space } from "../../../lib/theme";
+import { MerchantLogo } from "../../../components/merchant/MerchantLogo";
 
 const MEMBER_COLORS = ["#3D8E62", "#4A6CF7", "#E8507A", "#F59E0B", "#10A37F", "#8B5CF6"];
 
@@ -106,6 +107,13 @@ export default function GroupScreen() {
           <View style={[s.card, { backgroundColor: theme.surface, borderColor: theme.borderLight }]}>
             {(detail.activity ?? []).map((a, i) => (
               <View key={a.id} style={[s.txRow, i < detail.activity.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.borderLight }]}>
+                <MerchantLogo
+                  merchantName={a.merchant}
+                  size={36}
+                  backgroundColor={theme.surfaceTertiary}
+                  borderColor={theme.borderLight}
+                  style={{ marginRight: 12 }}
+                />
                 <View style={s.txInfo}>
                   <Text style={[s.txMerchant, { color: theme.text }]}>{a.merchant}</Text>
                   <Text style={[s.txMeta, { color: theme.textQuaternary }]}>Split {a.splitCount} ways · {formatTimeAgo(a.createdAt)}</Text>

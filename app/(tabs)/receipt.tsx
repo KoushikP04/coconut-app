@@ -14,14 +14,17 @@ import {
   Share,
   Linking,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useApiFetch } from "../../lib/api";
-import { useReceiptSplit, type Step } from "../../hooks/useReceiptSplit";
+import { useReceiptSplitWithOptions, type Step } from "../../hooks/useReceiptSplit";
 import { useTheme } from "../../lib/theme-context";
 import { colors, font, fontSize, shadow, radii, space } from "../../lib/theme";
+import { useDemoMode } from "../../lib/demo-mode-context";
+import { useDemoData } from "../../lib/demo-context";
 
 const STEPS: { key: Step; label: string }[] = [
   { key: "upload", label: "Upload" },
@@ -32,6 +35,65 @@ const STEPS: { key: Step; label: string }[] = [
 
 const PC = ["#3D8E62", "#4A6CF7", "#E8507A", "#F59E0B", "#10A37F", "#FF5A5F", "#9B59B6", "#00674B"];
 function pColor(i: number) { return PC[i % PC.length]; }
+
+// Demo-only: compute minimal settlement suggestions (paid vs owed) so Summary feels real.
+type DemoMemberBalance = { memberId: string; paid: number; owed: number; total: number };
+type DemoSettlementSuggestion = { fromMemberId: string; toMemberId: string; amount: number };
+function computeBalancesDemo(
+  paidRows: { member_id: string; amount: number }[],
+  owedRows: { member_id: string; amount: number }[],
+  paidSettlements: { payer_member_id: string; amount: number }[] = [],
+  receivedSettlements: { receiver_member_id: string; amount: number }[] = []
+): Map<string, DemoMemberBalance> {
+  const map = new Map<string, DemoMemberBalance>();
+  function ensure(id: string) {
+    if (!map.has(id)) map.set(id, { memberId: id, paid: 0, owed: 0, total: 0 });
+    return map.get(id)!;
+  }
+  for (const r of paidRows) ensure(r.member_id).paid += Number(r.amount);
+  for (const r of owedRows) ensure(r.member_id).owed += Number(r.amount);
+  for (const s of paidSettlements) ensure(s.payer_member_id).total += Number(s.amount);
+  for (const s of receivedSettlements) ensure(s.receiver_member_id).total -= Number(s.amount);
+  for (const m of map.values()) {
+    m.total += m.paid - m.owed;
+    m.paid = Math.round(m.paid * 100) / 100;
+    m.owed = Math.round(m.owed * 100) / 100;
+    m.total = Math.round(m.total * 100) / 100;
+  }
+  return map;
+}
+
+function getSuggestedSettlementsDemo(balances: Map<string, DemoMemberBalance>): DemoSettlementSuggestion[] {
+  const compare = (a: { memberId: string; total: number }, b: { memberId: string; total: number }) => {
+    if (a.total > 0 && b.total < 0) return -1;
+    if (a.total < 0 && b.total > 0) return 1;
+    return a.memberId.localeCompare(b.memberId);
+  };
+  const arr = Array.from(balances.values())
+    .filter((b) => Math.round(b.total * 100) / 100 !== 0)
+    .map((b) => ({ memberId: b.memberId, total: b.total }))
+    .sort(compare);
+
+  const suggestions: DemoSettlementSuggestion[] = [];
+  while (arr.length >= 2) {
+    const first = arr[0];
+    const last = arr[arr.length - 1];
+    if (first.total <= 0 || last.total >= 0) break;
+    const amount = first.total + last.total;
+    if (first.total > -last.total) {
+      const amt = Math.round(-last.total * 100) / 100;
+      if (amt > 0) suggestions.push({ fromMemberId: last.memberId, toMemberId: first.memberId, amount: amt });
+      first.total = amount;
+      arr.pop();
+    } else {
+      const amt = Math.round(first.total * 100) / 100;
+      if (amt > 0) suggestions.push({ fromMemberId: last.memberId, toMemberId: first.memberId, amount: amt });
+      last.total = amount;
+      arr.shift();
+    }
+  }
+  return suggestions.filter((s) => Math.round(s.amount * 100) / 100 > 0);
+}
 
 type Contact = {
   displayName: string;
@@ -46,12 +108,28 @@ type Contact = {
 export default function ReceiptScreen() {
   const { theme } = useTheme();
   const apiFetch = useApiFetch();
-  const rs = useReceiptSplit(apiFetch);
+  const { isDemoOn } = useDemoMode();
+  const demo = useDemoData();
+  const rs = useReceiptSplitWithOptions(apiFetch, { demo: isDemoOn });
   const stepIdx = STEPS.findIndex((s) => s.key === rs.step);
 
   return (
-    <KeyboardAvoidingView style={st.kv} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView style={[st.scroll, { backgroundColor: theme.background }]} contentContainerStyle={st.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[st.safe, { backgroundColor: theme.background }]} edges={["top"]}>
+      <View style={st.receiptTopBar}>
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace("/(tabs)");
+          }}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={24} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+      <KeyboardAvoidingView style={st.kv} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView style={[st.scroll, { backgroundColor: theme.background }]} contentContainerStyle={st.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={st.header}>
           <View style={[st.headerIcon, { backgroundColor: theme.primaryLight }]}><Ionicons name="receipt-outline" size={22} color={theme.primary} /></View>
@@ -76,16 +154,17 @@ export default function ReceiptScreen() {
 
         {rs.step === "upload" && <UploadStep rs={rs} />}
         {rs.step === "review" && <ReviewStep rs={rs} />}
-        {rs.step === "assign" && <AssignStep rs={rs} apiFetch={apiFetch} />}
-        {rs.step === "summary" && <SummaryStep rs={rs} apiFetch={apiFetch} />}
+        {rs.step === "assign" && <AssignStep rs={rs} apiFetch={apiFetch} isDemoOn={isDemoOn} demo={demo} />}
+        {rs.step === "summary" && <SummaryStep rs={rs} apiFetch={apiFetch} isDemoOn={isDemoOn} demo={demo} />}
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 /* ═══════════════════ Step 1: Upload ═══════════════════ */
 
-function UploadStep({ rs }: { rs: ReturnType<typeof useReceiptSplit> }) {
+function UploadStep({ rs }: { rs: ReturnType<typeof useReceiptSplitWithOptions> }) {
   const { theme } = useTheme();
   const pick = async (camera: boolean) => {
     const { status: lib } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -148,7 +227,7 @@ function UploadStep({ rs }: { rs: ReturnType<typeof useReceiptSplit> }) {
 
 /* ═══════════════════ Step 2: Review (REDESIGNED) ═══════════════════ */
 
-function ReviewStep({ rs }: { rs: ReturnType<typeof useReceiptSplit> }) {
+function ReviewStep({ rs }: { rs: ReturnType<typeof useReceiptSplitWithOptions> }) {
   const { theme } = useTheme();
   const recalcSubtotal = useCallback(() => {
     const sub = rs.editItems.reduce((s, i) => s + i.totalPrice, 0);
@@ -285,14 +364,44 @@ function TotalRow({ label, value, editable = true, onChange }: { label: string; 
 
 /* ═══════════════════ Step 3: Assign (REDESIGNED) ═══════════════════ */
 
-function AssignStep({ rs, apiFetch }: { rs: ReturnType<typeof useReceiptSplit>; apiFetch: (path: string, opts?: any) => Promise<Response> }) {
+function AssignStep({
+  rs,
+  apiFetch,
+  isDemoOn,
+  demo,
+}: {
+  rs: ReturnType<typeof useReceiptSplitWithOptions>;
+  apiFetch: (path: string, opts?: any) => Promise<Response>;
+  isDemoOn: boolean;
+  demo: ReturnType<typeof useDemoData>;
+}) {
   const { theme } = useTheme();
   const [search, setSearch] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
 
   useEffect(() => {
+    if (isDemoOn) {
+      // Demo contacts come from demo group member lists.
+      const groups = Object.values(demo.groupDetails ?? {});
+      const contactsBuilt: Contact[] = [];
+      for (const g of groups) {
+        for (const m of g.members ?? []) {
+          contactsBuilt.push({
+            displayName: m.display_name,
+            email: m.email,
+            groupId: g.id,
+            groupName: g.name,
+            memberId: m.id,
+            memberCount: g.members?.length ?? 0,
+            hasAccount: Boolean(m.user_id),
+          });
+        }
+      }
+      setContacts(contactsBuilt);
+      return;
+    }
     apiFetch("/api/groups/people").then(r => r.json()).then(d => setContacts(d.people ?? [])).catch(() => {});
-  }, [apiFetch]);
+  }, [apiFetch, isDemoOn, demo]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -469,7 +578,17 @@ function AssignStep({ rs, apiFetch }: { rs: ReturnType<typeof useReceiptSplit>; 
 
 /* ═══════════════════ Step 4: Summary ═══════════════════ */
 
-function SummaryStep({ rs, apiFetch }: { rs: ReturnType<typeof useReceiptSplit>; apiFetch: (path: string, opts?: any) => Promise<Response> }) {
+function SummaryStep({
+  rs,
+  apiFetch,
+  isDemoOn,
+  demo,
+}: {
+  rs: ReturnType<typeof useReceiptSplitWithOptions>;
+  apiFetch: (path: string, opts?: any) => Promise<Response>;
+  isDemoOn: boolean;
+  demo: ReturnType<typeof useDemoData>;
+}) {
   const { theme } = useTheme();
   const grandTotal = rs.personShares.reduce((s, p) => s + p.totalOwed, 0);
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
@@ -484,17 +603,71 @@ function SummaryStep({ rs, apiFetch }: { rs: ReturnType<typeof useReceiptSplit>;
   const [recordedSettlements, setRecordedSettlements] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    apiFetch("/api/groups").then(r => r.json()).then(data => {
-      const list = Array.isArray(data) ? data : data.groups ?? [];
-      setGroups(list);
-      if (list.length === 1) setSelectedGroupId(list[0].id);
-    }).catch(() => {});
-  }, [apiFetch]);
+    if (isDemoOn) {
+      const demoGroups = demo.summary?.groups ?? [];
+      setGroups(demoGroups.map((g) => ({ id: g.id, name: g.name })));
+      if (demoGroups.length > 0) setSelectedGroupId(demoGroups[0].id);
+      return;
+    }
+    apiFetch("/api/groups")
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data.groups ?? [];
+        setGroups(list);
+        if (list.length > 0) setSelectedGroupId(list[0].id);
+      })
+      .catch(() => {});
+  }, [apiFetch, isDemoOn, demo.summary]);
 
   const handleFinish = async (opts?: { stayForSettle?: boolean; groupId?: string }) => {
     const gid = opts?.groupId ?? selectedGroupId;
     if (!gid || !rs.receiptId) return;
     setFinishing(true);
+
+    if (isDemoOn) {
+      const group = demo.groupDetails?.[gid];
+      if (!group) {
+        Alert.alert("Error", "Group not found");
+        setFinishing(false);
+        return;
+      }
+
+      const groupMembers = group.members ?? [];
+      const payer = groupMembers.find((m) => m.user_id === "me") ?? groupMembers[0];
+      if (!payer?.id) {
+        Alert.alert("Error", "Missing payer");
+        setFinishing(false);
+        return;
+      }
+
+      const owedRows = rs.personShares
+        .filter((p) => !!p.memberId)
+        .map((p) => ({ member_id: p.memberId as string, amount: p.totalOwed }));
+
+      const paidRows = [{ member_id: payer.id, amount: grandTotal }];
+      const balances = computeBalancesDemo(paidRows, owedRows);
+      const demoSuggestions = getSuggestedSettlementsDemo(balances);
+
+      const memberMap = new Map(groupMembers.map((m) => [m.id, m.display_name]));
+      const membersForUi = groupMembers.map((m) => ({ id: m.id, displayName: m.display_name, email: m.email ?? null }));
+
+      setFinished(true);
+      setGroupBalances([]);
+      setSuggestions(
+        demoSuggestions.map((s) => ({
+          fromMemberId: s.fromMemberId,
+          toMemberId: s.toMemberId,
+          fromName: memberMap.get(s.fromMemberId) ?? "Unknown",
+          toName: memberMap.get(s.toMemberId) ?? "Unknown",
+          amount: s.amount,
+        }))
+      );
+      setGroupName(group.name ?? "");
+      setMembers(membersForUi);
+      setFinishing(false);
+      return;
+    }
+
     try {
       const res = await apiFetch(`/api/receipt/${rs.receiptId}/finish`, { method: "POST", body: { groupId: gid, people: rs.people.map(p => ({ name: p.name, email: p.email })) } });
       const data = await res.json();
@@ -517,6 +690,27 @@ function SummaryStep({ rs, apiFetch }: { rs: ReturnType<typeof useReceiptSplit>;
   };
 
   const handleRequest = async (s: (typeof suggestions)[0]) => {
+    if (isDemoOn) {
+      const key = `${s.fromMemberId}-${s.toMemberId}`;
+      setRequestingPayment(key);
+      try {
+        const mail = members.find((m) => m.id === s.fromMemberId)?.email;
+        if (mail) {
+          Linking.openURL(
+            `mailto:${encodeURIComponent(mail)}?subject=${encodeURIComponent(
+              `Payment: $${s.amount.toFixed(2)}`
+            )}&body=${encodeURIComponent(
+              `You owe $${s.amount.toFixed(2)} for ${groupName || "our receipt split"}.`
+            )}`
+          );
+        } else {
+          Alert.alert("No email", "Add their email to send a request.");
+        }
+      } finally {
+        setRequestingPayment(null);
+      }
+      return;
+    }
     const key = `${s.fromMemberId}-${s.toMemberId}`;
     setRequestingPayment(key);
     try {
@@ -533,6 +727,11 @@ function SummaryStep({ rs, apiFetch }: { rs: ReturnType<typeof useReceiptSplit>;
   };
 
   const handleCash = async (s: (typeof suggestions)[0]) => {
+    if (isDemoOn) {
+      const key = `${s.fromMemberId}-${s.toMemberId}`;
+      setRecordedSettlements((prev) => new Set(prev).add(key));
+      return;
+    }
     const key = `${s.fromMemberId}-${s.toMemberId}`;
     try {
       const res = await apiFetch("/api/settlements", { method: "POST", body: { groupId: selectedGroupId, payerMemberId: s.fromMemberId, receiverMemberId: s.toMemberId, amount: s.amount, method: "in_person" } });
@@ -644,6 +843,13 @@ function SummaryStep({ rs, apiFetch }: { rs: ReturnType<typeof useReceiptSplit>;
 /* ═══════════════════ Styles ═══════════════════ */
 
 const st = StyleSheet.create({
+  safe: { flex: 1 },
+  receiptTopBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
   kv: { flex: 1 },
   scroll: { flex: 1, backgroundColor: colors.bg },
   scrollContent: { padding: 20, paddingBottom: 60 },

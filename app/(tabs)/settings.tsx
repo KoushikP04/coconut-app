@@ -21,7 +21,7 @@ import { useTheme } from "../../lib/theme-context";
 import type { ThemeMode } from "../../lib/colors";
 import { colors, font, fontSize, shadow, radii, space, type as T } from "../../lib/theme";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-lemon.vercel.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-app.dev";
 
 type PlaidAccount = {
   account_id: string;
@@ -265,6 +265,20 @@ export default function SettingsScreen() {
             ) : (
               <Text style={styles.buttonText}>{saved ? "Saved" : "Save changes"}</Text>
             )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Hidden from tab bar (split-first nav) — deep links */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>More tools</Text>
+          <TouchableOpacity style={styles.linkButton} onPress={() => router.push("/(tabs)/shared")}>
+            <Text style={[styles.link, { color: theme.primary }]}>Groups & friends hub →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.linkButton} onPress={() => router.push("/(tabs)/review")}>
+            <Text style={[styles.link, { color: theme.primary }]}>Receipt review →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.linkButton} onPress={() => router.push("/(tabs)/receipt")}>
+            <Text style={[styles.link, { color: theme.primary }]}>Scan receipt →</Text>
           </TouchableOpacity>
         </View>
 
