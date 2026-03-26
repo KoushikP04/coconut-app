@@ -86,16 +86,16 @@ export function useTransactions() {
         if (cancelled) return;
         if (Array.isArray(data)) setTransactions(data as Transaction[]);
       })
+      .catch(() => {
+        clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
+      })
       .finally(() => {
         if (!cancelled) {
           clearTimeout(timeout);
           hasShownInitialLoad.current = true;
           setLoading(false);
         }
-      })
-      .catch(() => {
-        clearTimeout(timeout);
-        if (!cancelled) setLoading(false);
       });
   }, [apiFetch]);
 
