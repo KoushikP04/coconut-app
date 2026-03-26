@@ -14,6 +14,18 @@ export interface Transaction {
   isRecurring?: boolean;
   hasSplitSuggestion?: boolean;
   merchantColor: string;
+  isPending?: boolean;
+  /** Last 4 of account for bank tag, e.g. "1234" */
+  accountMask?: string | null;
+  /** Account name for bank tag, e.g. "Chase Checking" */
+  accountName?: string | null;
+  /** Linked email receipt (Gmail) matched to this bank charge */
+  hasReceipt?: boolean;
+  receiptMatchLine?: string;
+  /** Already added to a group split — hide from “split this” home strip */
+  alreadySplit?: boolean;
+  /** Internal `transactions.id` for APIs that need DB uuid */
+  dbId?: string;
 }
 
 export type PlaidStatus = "ok" | "unauthorized" | "not_linked";
@@ -30,7 +42,7 @@ export function useTransactions() {
   const fetchData = useCallback((silent = false): Promise<void> => {
     let cancelled = false;
     const isFirstLoad = !hasShownInitialLoad.current;
-    console.log(`[useTransactions] fetchData started silent=${silent} isFirstLoad=${isFirstLoad}`);
+    if (__DEV__) console.log("[pipeline:tx] 1. start", { silent, isFirstLoad });
     setStatus("ok");
     if (!silent && isFirstLoad) setLoading(true);
     const controller = new AbortController();
@@ -39,17 +51,17 @@ export function useTransactions() {
       .then((r) => {
         clearTimeout(timeout);
         if (cancelled) return null;
-        console.log(`[useTransactions] plaid/status → ${r.status}`);
+        if (__DEV__) console.log("[pipeline:tx] 2. plaid/status", r.status);
         if (r.status === 425) {
-          if (transientRetryCount.current < 8) {
+          if (transientRetryCount.current < 14) {
             transientRetryCount.current += 1;
-            console.log(`[useTransactions] 425 retry ${transientRetryCount.current}/8`);
+            if (__DEV__) console.log("[pipeline:tx] 2b. 425 retry", transientRetryCount.current, "/14");
             setTimeout(() => {
               if (!cancelled) fetchData(true);
-            }, 800);
+            }, 600);
             return null;
           }
-          console.log("[useTransactions] 425 max retries, setting loading=false");
+          if (__DEV__) console.log("[pipeline:tx] 2c. 425 max retries → stop");
           setLoading(false);
           return null;
         }
@@ -69,12 +81,12 @@ export function useTransactions() {
       .then((data) => {
         if (cancelled || !data) return null;
         if (!data.linked) {
-          console.log("[useTransactions] not linked, loading=false");
+          if (__DEV__) console.log("[pipeline:tx] 3. not linked → stop");
           setStatus("not_linked");
           setLoading(false);
           return null;
         }
-        console.log("[useTransactions] linked! fetching transactions");
+        if (__DEV__) console.log("[pipeline:tx] 3. linked → GET /api/plaid/transactions");
         setLinked(true);
         return apiFetch("/api/plaid/transactions");
       })
@@ -84,7 +96,10 @@ export function useTransactions() {
       })
       .then((data) => {
         if (cancelled) return;
-        if (Array.isArray(data)) setTransactions(data as Transaction[]);
+        if (Array.isArray(data)) {
+          setTransactions(data as Transaction[]);
+          if (__DEV__) console.log("[pipeline:tx] 4. output", { count: (data as unknown[]).length });
+        }
       })
       .catch(() => {
         clearTimeout(timeout);
@@ -99,12 +114,27 @@ export function useTransactions() {
       });
   }, [apiFetch]);
 
+  /** Full sync with Plaid (POST then GET). Slow (~15–30s); use for pull-to-refresh only. */
+  const runFullSync = useCallback(
+    async (silent = true) => {
+      // Fetch cached transactions first (fast), then sync in background
+      await fetchData(silent);
+      try {
+        await apiFetch("/api/plaid/transactions", { method: "POST", body: {} as object });
+        fetchData(true);
+      } catch {
+        // Sync may fail; cached data is already displayed
+      }
+    },
+    [apiFetch, fetchData]
+  );
+
+  // Initial load: fetch from DB only (no Plaid sync). Shows in ~2–5s instead of ~30s.
   useEffect(() => {
-    fetchData();
+    fetchData(false);
   }, [fetchData]);
 
-  // Refetch when app returns from background (e.g. after connect flow in browser)
-  // Use silent=true to avoid flickering — don't show loading spinner on refetch
+  // When app returns from background: refetch from DB only (no full sync).
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") fetchData(true);
@@ -112,5 +142,5 @@ export function useTransactions() {
     return () => sub.remove();
   }, [fetchData]);
 
-  return { transactions, linked, loading, status, refetch: fetchData };
+  return { transactions, linked, loading, status, refetch: fetchData, runFullSync };
 }

@@ -78,20 +78,25 @@ export function useGroupsSummary() {
   const [summary, setSummary] = useState<GroupsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchSummary = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await apiFetch("/api/groups/summary");
       if (res.ok) {
         const data = await res.json();
+        if (__DEV__) console.log("[summary] friends:", data.friends?.length ?? 0, "groups:", data.groups?.length ?? 0, "_debug:", JSON.stringify(data._debug));
         setSummary(data);
-      } else setSummary(null);
+      } else if (showLoading) {
+        // Initial load with bad response -> empty state is valid.
+        setSummary(null);
+      }
     } finally {
       setLoading(false);
     }
   }, [apiFetch]);
 
   useEffect(() => {
-    fetchSummary();
+    fetchSummary(true);
   }, [fetchSummary]);
 
   return { summary, loading, refetch: fetchSummary };
