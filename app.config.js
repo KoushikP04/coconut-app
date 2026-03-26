@@ -1,8 +1,10 @@
-// Dev variant: development EAS profile OR APP_VARIANT=dev (local)
+// Dev variant: EAS development profile OR APP_VARIANT=dev|development (local)
+const appVariant = (process.env.APP_VARIANT ?? "").toLowerCase();
 const isDev =
   process.env.EAS_BUILD_PROFILE === "development" ||
   process.env.EAS_BUILD_PROFILE === "development-simulator" ||
-  process.env.APP_VARIANT === "dev";
+  appVariant === "dev" ||
+  appVariant === "development";
 
 const name = isDev ? "Coconut Dev" : "Coconut";
 const bundleId = isDev ? "com.coconut.app.dev" : "com.coconut.app";

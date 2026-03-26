@@ -15,14 +15,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useSignIn } from "@clerk/expo/legacy";
+import { useSSO } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 import { useTheme } from "../../lib/theme-context";
 import { useDemoMode } from "../../lib/demo-mode-context";
+import { clerkRejectedGoogleOneTap } from "../../lib/clerk-google";
 import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
 import { CoconutMark } from "../../components/brand/CoconutMark";
 
 const SIGN_IN_TIMEOUT_MS = 20000;
+/** Browser OAuth can take longer than native Google. */
+const GOOGLE_OAUTH_FALLBACK_TIMEOUT_MS = 120000;
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-app.dev";
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
@@ -55,6 +59,7 @@ export default function SignInScreen() {
     setActive: ((opts: { session: string }) => Promise<void>) | undefined;
   };
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
+  const { startSSOFlow } = useSSO();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -97,6 +102,31 @@ export default function SignInScreen() {
       if (isSessionExists || msg.toLowerCase().includes("already signed in")) {
         setIsDemoOn(false);
         router.replace("/(tabs)");
+        return;
+      }
+      if (clerkRejectedGoogleOneTap(e)) {
+        try {
+          const fallback = await withTimeout(
+            startSSOFlow({ strategy: "oauth_google" }),
+            GOOGLE_OAUTH_FALLBACK_TIMEOUT_MS,
+            "Google OAuth (browser)"
+          );
+          if (fallback.createdSessionId && fallback.setActive) {
+            await withTimeout(
+              fallback.setActive({ session: fallback.createdSessionId }),
+              SIGN_IN_TIMEOUT_MS,
+              "Google OAuth setActive"
+            );
+            setIsDemoOn(false);
+            router.replace("/(tabs)");
+            return;
+          }
+          setError("Google sign-in (browser) did not complete. Try again.");
+        } catch (oauthErr: unknown) {
+          const o = oauthErr as { code?: string };
+          if (o.code === "SIGN_IN_CANCELLED" || o.code === "-5") return;
+          setError(getClerkErrorMessage(oauthErr, "Google sign-in (browser) failed"));
+        }
         return;
       }
       if (__DEV__) console.warn("[GoogleSignIn]", msg, err.errors);

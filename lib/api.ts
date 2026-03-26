@@ -105,7 +105,7 @@ export function useApiFetch() {
         headers["Content-Type"] = "application/json";
       }
 
-      const url = `${API_URL.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+      const url = `${API_URL}${path.startsWith("/") ? path : `/${path}`}`;
       let body: FormData | string | undefined;
       if (opts.body instanceof FormData) {
         body = opts.body;
@@ -137,8 +137,4 @@ export function useApiFetch() {
     },
     []
   );
-}
-
-export function getApiUrl() {
-  return API_URL;
 }

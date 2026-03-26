@@ -2,7 +2,7 @@
  * Home tab — UI matches `Create design prototype (1)/src/app/pages/MobileAppPage.tsx` HomeScreen.
  * No legacy transaction list / NL search / insights on this screen.
  */
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
+  DeviceEventEmitter,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -123,7 +124,7 @@ function filterOffsettingBankPairs(transactions: Transaction[]): Transaction[] {
 }
 
 export default function BalancesPrototypeScreen() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
   const { isDemoOn } = useDemoMode();
   const demo = useDemoData();
@@ -137,7 +138,8 @@ export default function BalancesPrototypeScreen() {
   const [bankFilter, setBankFilter] = useState<"all" | "unsplit">("all");
   const [refreshing, setRefreshing] = useState(false);
 
-  const useDemoBankUi = isDemoOn || !isSignedIn;
+  // Avoid treating Clerk's initial isSignedIn=false/undefined as "guest" — that flashed demo bank while session loads.
+  const useDemoBankUi = isDemoOn || (authLoaded && !isSignedIn);
   const { transactions, linked, loading: txLoading, status: txStatus, refetch: refetchTx } = useTransactions();
   const bankVisibleTransactions = useMemo(() => filterOffsettingBankPairs(transactions), [transactions]);
   const initialHomeLoading =
@@ -192,6 +194,14 @@ export default function BalancesPrototypeScreen() {
       setRefreshing(false);
     }
   }, [isDemoOn, refetch, refetchTx]);
+
+  useEffect(() => {
+    if (isDemoOn) return;
+    const sub = DeviceEventEmitter.addListener("groups-updated", () => {
+      void refetch();
+    });
+    return () => sub.remove();
+  }, [isDemoOn, refetch]);
 
   const friends = summary?.friends ?? [];
   const groups = summary?.groups ?? [];
@@ -310,7 +320,14 @@ export default function BalancesPrototypeScreen() {
                 </TouchableOpacity>
               ) : null}
             </View>
-            {txStatus === "unauthorized" ? (
+            {txStatus === "api_unreachable" ? (
+              <View style={styles.emptyBank}>
+                <Text style={styles.emptyBankText}>
+                  Can&apos;t reach the Coconut API (got 404). Set EXPO_PUBLIC_API_URL in .env to your live Next.js URL
+                  (same host as the web app), restart Expo, and try again.
+                </Text>
+              </View>
+            ) : txStatus === "unauthorized" ? (
               <View style={styles.emptyBank}>
                 <Text style={styles.emptyBankText}>Sign in again to load bank charges.</Text>
               </View>

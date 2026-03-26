@@ -149,6 +149,13 @@ export default function SharedIndex() {
   }, [isDemoOn, refetch]);
 
   useEffect(() => {
+    const sub = DeviceEventEmitter.addListener("groups-updated", () => {
+      if (!isDemoOn) refetch(true);
+    });
+    return () => sub.remove();
+  }, [isDemoOn, refetch]);
+
+  useEffect(() => {
     if (prevDemoOn.current && !isDemoOn) refetch(true);
     prevDemoOn.current = isDemoOn;
   }, [isDemoOn, refetch]);
@@ -277,18 +284,37 @@ export default function SharedIndex() {
     ...optimisticFriends,
     ...fallbackFriendRows.filter((f) => !optimisticFriends.some((o) => o.displayName === f.displayName)),
   ];
-  const friends = summaryFriends.length > 0
-    ? [...summaryFriends, ...optimisticFriends.filter((o) => !summaryFriends.some((s) => s.displayName === o.displayName))]
-    : mergedFallbackFriends;
-  const groups = summaryGroups.length > 0
-    ? summaryGroups
-    : mergedFallbackGroups.map((g) => ({
-        id: g.id,
-        name: g.name,
-        memberCount: g.memberCount,
-        myBalance: 0,
-        lastActivityAt: new Date().toISOString(),
-      }));
+  // When the API returns successfully, trust it — including empty lists (all settled). Do not fall back
+  // to “everyone from /api/groups” or we’d show people with $0 net like Splitwise hides.
+  const friends =
+    !isDemoOn && realSummary != null
+      ? [
+          ...optimisticFriends.filter((o) => !summaryFriends.some((s) => s.displayName === o.displayName)),
+          ...summaryFriends,
+        ]
+      : isDemoOn
+        ? summaryFriends
+        : mergedFallbackFriends;
+  const groupsFromApi =
+    !isDemoOn && realSummary != null
+      ? summaryGroups
+      : mergedFallbackGroups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          memberCount: g.memberCount,
+          myBalance: 0,
+          lastActivityAt: new Date().toISOString(),
+        }));
+  const optimisticAsGroups = optimisticGroups
+    .filter((o) => !groupsFromApi.some((s) => s.id === o.id))
+    .map((g) => ({
+      id: g.id,
+      name: g.name,
+      memberCount: g.memberCount,
+      myBalance: 0,
+      lastActivityAt: new Date().toISOString(),
+    }));
+  const groups = !isDemoOn && realSummary != null ? [...optimisticAsGroups, ...groupsFromApi] : isDemoOn ? summaryGroups : groupsFromApi;
   const friendNameSet = new Set(friends.map((f) => f.displayName.trim().toLowerCase()));
   const visibleGroups = groups.filter((g) => {
     const groupName = g.name.trim().toLowerCase();

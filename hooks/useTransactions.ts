@@ -28,7 +28,8 @@ export interface Transaction {
   dbId?: string;
 }
 
-export type PlaidStatus = "ok" | "unauthorized" | "not_linked";
+/** `api_unreachable` = HTTP 404 on /api/plaid/status (usually wrong EXPO_PUBLIC_API_URL, not auth). */
+export type PlaidStatus = "ok" | "unauthorized" | "not_linked" | "api_unreachable";
 
 export function useTransactions() {
   const apiFetch = useApiFetch();
@@ -66,9 +67,17 @@ export function useTransactions() {
           return null;
         }
         transientRetryCount.current = 0;
-        if (r.status === 401 || r.status === 404) {
-          // 404 = Clerk's protect() for unauthenticated; 401 = our middleware
+        if (r.status === 401) {
           setStatus("unauthorized");
+          setLoading(false);
+          return null;
+        }
+        if (r.status === 404) {
+          if (__DEV__) {
+            const base = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "") || "(unset EXPO_PUBLIC_API_URL)";
+            console.warn(`[pipeline:tx] /api/plaid/status 404 — check API host (e.g. ${base})`);
+          }
+          setStatus("api_unreachable");
           setLoading(false);
           return null;
         }

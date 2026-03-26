@@ -137,7 +137,7 @@ export default function AddExpenseScreen() {
   const apiFetch = useApiFetch();
   const { isDemoOn } = useDemoMode();
   const demo = useDemoData();
-  const { summary: realSummary, loading } = useGroupsSummary();
+  const { summary: realSummary, loading } = useGroupsSummary({ contacts: true });
   const summary = isDemoOn ? demo.summary : realSummary;
 
   const [step, setStep] = useState<FlowStep>("people");

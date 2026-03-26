@@ -14,12 +14,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useSignUp } from "@clerk/expo/legacy";
+import { useSSO } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 import { useTheme } from "../../lib/theme-context";
 import { useDemoMode } from "../../lib/demo-mode-context";
+import { clerkRejectedGoogleOneTap } from "../../lib/clerk-google";
 import { colors, font, fontSize, shadow, radii } from "../../lib/theme";
 import { CoconutMark } from "../../components/brand/CoconutMark";
+
+const SIGN_UP_GOOGLE_OAUTH_TIMEOUT_MS = 120000;
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
   const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
@@ -41,6 +45,7 @@ export default function SignUpScreen() {
     setActive: ((opts: { session: string }) => Promise<void>) | undefined;
   };
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle();
+  const { startSSOFlow } = useSSO();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -54,14 +59,38 @@ export default function SignUpScreen() {
     setError("");
     setGoogleLoading(true);
     try {
-      const { createdSessionId, setActive } = await startGoogleAuthenticationFlow();
-      if (createdSessionId && setActive) {
-        await setActive({ session: createdSessionId });
+      const { createdSessionId, setActive: setActiveGoogle } = await startGoogleAuthenticationFlow();
+      if (createdSessionId && setActiveGoogle) {
+        await setActiveGoogle({ session: createdSessionId });
         setIsDemoOn(false);
+        router.replace("/(tabs)");
+        return;
       }
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string };
       if (err.code === "SIGN_IN_CANCELLED" || err.code === "-5") return;
+      if (clerkRejectedGoogleOneTap(e)) {
+        try {
+          const fallback = await Promise.race([
+            startSSOFlow({ strategy: "oauth_google" }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Google sign-up (browser) timed out")), SIGN_UP_GOOGLE_OAUTH_TIMEOUT_MS)
+            ),
+          ]);
+          if (fallback.createdSessionId && fallback.setActive) {
+            await fallback.setActive({ session: fallback.createdSessionId });
+            setIsDemoOn(false);
+            router.replace("/(tabs)");
+            return;
+          }
+          setError("Google sign-up (browser) did not complete. Try again.");
+        } catch (oauthErr: unknown) {
+          const o = oauthErr as { code?: string };
+          if (o.code === "SIGN_IN_CANCELLED" || o.code === "-5") return;
+          setError(getClerkErrorMessage(oauthErr, "Google sign-up (browser) failed"));
+        }
+        return;
+      }
       setError(getClerkErrorMessage(e, "Google sign-up failed"));
     } finally {
       setGoogleLoading(false);

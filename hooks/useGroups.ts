@@ -73,27 +73,47 @@ export interface PersonDetail {
   settlements?: Array<{ groupId: string; fromMemberId: string; toMemberId: string; amount: number }>;
 }
 
-export function useGroupsSummary() {
+export type UseGroupsSummaryOptions = {
+  /**
+   * When true, GET /api/groups/summary?contacts=1 — all group members & groups (incl. $0 net).
+   * Use for expense pickers. Default (false) = Splitwise-style: only unsettled friends & groups.
+   */
+  contacts?: boolean;
+};
+
+export function useGroupsSummary(options?: UseGroupsSummaryOptions) {
+  const contacts = options?.contacts === true;
+  const summaryPath = contacts ? "/api/groups/summary?contacts=1" : "/api/groups/summary";
   const apiFetch = useApiFetch();
   const [summary, setSummary] = useState<GroupsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchSummary = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    try {
-      const res = await apiFetch("/api/groups/summary");
-      if (res.ok) {
-        const data = await res.json();
-        if (__DEV__) console.log("[summary] friends:", data.friends?.length ?? 0, "groups:", data.groups?.length ?? 0, "_debug:", JSON.stringify(data._debug));
-        setSummary(data);
-      } else if (showLoading) {
-        // Initial load with bad response -> empty state is valid.
-        setSummary(null);
+  const fetchSummary = useCallback(
+    async (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      try {
+        const res = await apiFetch(summaryPath);
+        if (res.ok) {
+          const data = await res.json();
+          if (__DEV__)
+            console.log(
+              "[summary]",
+              contacts ? "contacts" : "outstanding",
+              "friends:",
+              data.friends?.length ?? 0,
+              "groups:",
+              data.groups?.length ?? 0
+            );
+          setSummary(data);
+        } else if (showLoading) {
+          setSummary(null);
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [apiFetch]);
+    },
+    [apiFetch, summaryPath, contacts]
+  );
 
   useEffect(() => {
     fetchSummary(true);

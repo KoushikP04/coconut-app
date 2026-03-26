@@ -45,7 +45,9 @@ type Target = { type: "group" | "friend" | "self"; key: string; name: string };
 
 export default function ReviewScreen() {
   const { transactions, loading: txLoading } = useTransactions();
-  const { summary, loading: groupsLoading, refetch: refetchGroups } = useGroupsSummary();
+  const { summary, loading: groupsLoading, refetch: refetchGroups } = useGroupsSummary({
+    contacts: true,
+  });
   const apiFetch = useApiFetch();
 
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
