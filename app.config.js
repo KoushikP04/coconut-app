@@ -34,7 +34,13 @@ export default {
       },
       package: "com.coconut.app",
       minSdkVersion: 24,
-      permissions: ["INTERNET"],
+      permissions: [
+        "INTERNET",
+        "NFC",
+        "ACCESS_FINE_LOCATION",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+      ],
     },
     plugins: [
       "expo-router",
