@@ -321,10 +321,18 @@ export function useReceiptSplit(apiFetch: ApiFetch) {
             })),
           })
         );
-        await apiFetch(`/api/receipt/${receiptId}/assign`, {
+        const res = await apiFetch(`/api/receipt/${receiptId}/assign`, {
           method: "POST",
           body: { assignments: payload },
         });
+        if (!res.ok) {
+          let errMsg = "Failed to save assignments";
+          try {
+            const d = await res.json();
+            errMsg = (d as { error?: string }).error ?? errMsg;
+          } catch {}
+          throw new Error(errMsg);
+        }
       } finally {
         setSaving(false);
       }
