@@ -10,6 +10,7 @@ import {
   Platform,
   Linking,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSignIn } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
@@ -124,6 +125,7 @@ export default function SignInScreen() {
   const formDisabled = !isLoaded;
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -208,10 +210,15 @@ export default function SignInScreen() {
         </Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F7FAF8",
+  },
   container: {
     flex: 1,
     padding: 24,
