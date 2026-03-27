@@ -89,9 +89,13 @@ export function useReceiptSplit(apiFetch: ApiFetch) {
           method: "POST",
           body: formData,
         });
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error ?? "Parse failed");
+        let data: Record<string, unknown> = {};
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error(`Server error (${res.status})`);
+        }
+        if (!res.ok) throw new Error((data?.error as string) ?? `Server error (${res.status})`);
 
         const items = (data.receipt_items ?? []).sort(
           (a: { sort_order: number }, b: { sort_order: number }) =>
@@ -154,8 +158,13 @@ export function useReceiptSplit(apiFetch: ApiFetch) {
             merchant_name: editMerchant,
           },
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Save failed");
+        let data: Record<string, unknown> = {};
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error(`Server error (${res.status})`);
+        }
+        if (!res.ok) throw new Error((data?.error as string) ?? `Server error (${res.status})`);
 
         const serverItems = (data.receipt_items ?? [])
           .sort(
