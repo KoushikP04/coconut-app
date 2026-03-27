@@ -236,21 +236,46 @@ export default function SettingsScreen() {
     try {
       const res = await apiFetch(path);
       const data = await res.json().catch(() => ({}));
+      const serverErr = (data as { error?: string }).error?.trim();
       if (!res.ok) {
         if (res.status === 401) {
           Alert.alert("Sign in required", "Sign in to Coconut again, then tap Connect Splitwise.");
           return;
         }
+        if (res.status === 425) {
+          Alert.alert(
+            "Session not ready",
+            "Wait a moment after opening the app, then try Connect Splitwise again.",
+          );
+          return;
+        }
+        if (res.status === 404) {
+          Alert.alert(
+            "Splitwise can’t start",
+            `This server doesn’t have the app Splitwise endpoint (404). Point EXPO_PUBLIC_API_URL at your latest Coconut deployment (same URL as the web app), rebuild the app, and try again.\n\nCurrent API: ${API_URL.replace(/\/$/, "")}`,
+          );
+          return;
+        }
         if (res.status === 503) {
+          const msg = serverErr ?? "";
+          const isNetwork =
+            msg.includes("timed out") ||
+            msg.includes("Network request failed") ||
+            msg.includes("connection");
+          if (isNetwork) {
+            Alert.alert("Connection problem", msg || "Check your network and try again.");
+            return;
+          }
           Alert.alert(
             "Splitwise unavailable",
-            (data as { error?: string }).error ?? "Splitwise is not configured on the server.",
+            msg || "Splitwise is not configured on the server (missing SPLITWISE_CLIENT_ID / SECRET on Vercel).",
           );
           return;
         }
         Alert.alert(
           "Could not open Splitwise",
-          (data as { error?: string }).error ?? "Check your connection and API URL, then try again.",
+          serverErr ||
+            `The server returned HTTP ${res.status}. Check EXPO_PUBLIC_API_URL and that production is up to date.`,
         );
         return;
       }
