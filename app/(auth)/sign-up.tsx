@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSignUp } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
@@ -98,6 +99,7 @@ export default function SignUpScreen() {
   }
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -179,10 +181,15 @@ export default function SignUpScreen() {
         </Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F7FAF8",
+  },
   container: {
     flex: 1,
     padding: 24,
