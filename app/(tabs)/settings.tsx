@@ -62,7 +62,7 @@ export default function SettingsScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Save",
-          onPress: async (value) => {
+          onPress: async (value?: string) => {
             const nickname = value?.trim() || null;
             try {
               await apiFetch(`/api/plaid/accounts/${a.id}`, {
@@ -222,13 +222,46 @@ export default function SettingsScreen() {
     ]);
   }, [splitwiseParams?.splitwise_error, router]);
 
-  const connectSplitwise = () => {
-    const base = API_URL.replace(/\/$/, "");
+  /**
+   * Safari has no Clerk cookie on the API domain — opening /api/splitwise/auth in the browser
+   * returns 401. We fetch with the Bearer token and redirect: "manual", then open the
+   * Location URL (Splitwise) in the system browser.
+   */
+  const connectSplitwise = async () => {
+    splitwiseAutoImportStarted.current = false;
     const rawScheme = Constants.expoConfig?.scheme;
     const scheme =
       typeof rawScheme === "string" ? rawScheme : Array.isArray(rawScheme) ? rawScheme[0] ?? "coconut" : "coconut";
     const qs = new URLSearchParams({ app: "1", scheme });
-    void Linking.openURL(`${base}/api/splitwise/auth?${qs.toString()}`);
+    const path = `/api/splitwise/auth?${qs.toString()}`;
+    try {
+      const res = await apiFetch(path, { redirect: "manual" });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("Location");
+        if (loc) {
+          await Linking.openURL(loc);
+          return;
+        }
+      }
+      if (res.status === 401) {
+        Alert.alert("Sign in required", "Sign in to Coconut again, then tap Connect Splitwise.");
+        return;
+      }
+      if (res.status === 503) {
+        const data = await res.json().catch(() => ({}));
+        Alert.alert(
+          "Splitwise unavailable",
+          (data as { error?: string }).error ?? "Splitwise is not configured on the server.",
+        );
+        return;
+      }
+      const text = await res.text();
+      if (__DEV__) console.warn("[splitwise] auth unexpected", res.status, text.slice(0, 200));
+      Alert.alert("Could not open Splitwise", "Check your connection and API URL, then try again.");
+    } catch (e) {
+      if (__DEV__) console.warn("[splitwise] auth exception", e);
+      Alert.alert("Could not open Splitwise", "Something went wrong. Please try again.");
+    }
   };
 
   const startSplitwiseImport = async () => {
@@ -256,6 +289,14 @@ export default function SettingsScreen() {
     } finally {
       setSplitwiseImporting(false);
       void fetchSplitwiseStatus();
+      const hadOauthParams =
+        splitwiseParams?.splitwise === "connected" ||
+        splitwiseParams?.import === "1" ||
+        Boolean(splitwiseParams?.splitwise_error);
+      if (hadOauthParams) {
+        splitwiseAutoImportStarted.current = false;
+        router.replace("/(tabs)/settings");
+      }
     }
   };
 
@@ -614,7 +655,6 @@ const styles = StyleSheet.create({
   accountIcon: {
     width: 40,
     height: 40,
-    borderRadius: 10,
     borderRadius: radii.sm,
     alignItems: "center",
     justifyContent: "center",
