@@ -46,7 +46,7 @@ export default function InsightsScreen() {
   const { theme } = useTheme();
   const { transactions, linked, loading } = useTransactions();
   const { subscriptions, loading: subsLoading } = useSubscriptions();
-  const { summary: groupsSummary } = useGroupsSummary();
+  const { summary: groupsSummary } = useGroupsSummary({ contacts: true });
 
   const monthlySpend = useMemo(() => deriveMonthlySpend(transactions), [transactions]);
   const subsTotal = useMemo(

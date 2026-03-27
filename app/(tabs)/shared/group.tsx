@@ -53,7 +53,7 @@ export default function GroupScreen() {
   const { isDemoOn } = useDemoMode();
   const demo = useDemoData();
   const { detail: realDetail, loading, refetch } = useGroupDetail(isDemoOn ? null : (id ?? null));
-  const { refetch: refetchSummary } = useGroupsSummary();
+  const { refetch: refetchSummary } = useGroupsSummary({ contacts: true });
   const detail = isDemoOn && id ? demo.groupDetails[id] ?? null : realDetail;
 
   const [requestingPayment, setRequestingPayment] = useState(false);

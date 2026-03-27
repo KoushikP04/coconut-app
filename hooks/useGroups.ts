@@ -112,7 +112,8 @@ export interface PersonDetail {
 export type UseGroupsSummaryOptions = {
   /**
    * When true, GET /api/groups/summary?contacts=1 — all group members & groups (incl. $0 net).
-   * Use for expense pickers. Default (false) = Splitwise-style: only unsettled friends & groups.
+   * Home / Shared / Insights use this so imported Splitwise data appears even when every balance is settled.
+   * Default (false) = unsettled-only (matches Splitwise’s “you owe / owed” lists).
    */
   contacts?: boolean;
 };

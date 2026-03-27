@@ -137,7 +137,9 @@ export default function BalancesPrototypeScreen() {
   const { user, isLoaded: userLoaded } = useUser();
   const { isDemoOn } = useDemoMode();
   const demo = useDemoData();
-  const { summary: apiSummary, loading: summaryLoading, refetch } = useGroupsSummary();
+  const { summary: apiSummary, loading: summaryLoading, refetch } = useGroupsSummary({
+    contacts: true,
+  });
 
   const summary = isDemoOn ? demo.summary : apiSummary;
   const [dismissedBank, setDismissedBank] = useState<string[]>([]);
