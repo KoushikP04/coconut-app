@@ -28,6 +28,8 @@ export type HomeBankStripRow = {
   sheetDateLine: string;
   showReceiptBox: boolean;
   receiptBoxText?: string;
+  /** Server receipt uuid for GET /api/receipt/:id (itemized lines). */
+  receiptId?: string | null;
 };
 
 export function demoChargeToStripRow(tx: PrototypeBankCharge): HomeBankStripRow {
@@ -42,6 +44,7 @@ export function demoChargeToStripRow(tx: PrototypeBankCharge): HomeBankStripRow 
     sheetDateLine: tx.date,
     showReceiptBox: Boolean(tx.hasEmail && tx.emailLine),
     receiptBoxText: tx.emailLine,
+    receiptId: tx.receiptId ?? null,
   };
 }
 
@@ -71,6 +74,7 @@ export function transactionToHomeStripRow(tx: Transaction): HomeBankStripRow | n
     sheetDateLine: dateLine,
     showReceiptBox: hasReceiptSnippet,
     receiptBoxText: hasReceiptSnippet ? receiptSnippet : undefined,
+    receiptId: tx.receiptId ?? null,
   };
 }
 

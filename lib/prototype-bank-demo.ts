@@ -14,6 +14,8 @@ export type PrototypeBankCharge = {
   /** Blue mail badge + snippet row */
   hasEmail?: boolean;
   emailLine?: string;
+  /** Demo itemized receipt preview (no API) */
+  receiptId?: string;
 };
 
 export const PROTOTYPE_DEMO_BANK_CHARGES: PrototypeBankCharge[] = [
@@ -36,6 +38,7 @@ export const PROTOTYPE_DEMO_BANK_CHARGES: PrototypeBankCharge[] = [
     unsplit: true,
     hasEmail: true,
     emailLine: "11:48 PM · Nobu → Mission",
+    receiptId: "__demo__",
   },
   {
     id: "b3",

@@ -9,7 +9,9 @@ import {
   Alert,
   Linking,
   DeviceEventEmitter,
+  Platform,
 } from "react-native";
+import { MerchantLogo } from "../../components/merchant/MerchantLogo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useUser, useClerk, useAuth } from "@clerk/expo";
@@ -26,11 +28,14 @@ import { colors, font, shadow, radii } from "../../lib/theme";
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-app.dev";
 
 type PlaidAccount = {
+  id: string;
   account_id: string;
   name: string;
   type?: string;
   subtype?: string;
   mask?: string | null;
+  institution_name?: string | null;
+  nickname?: string | null;
 };
 
 export default function SettingsScreen() {
@@ -48,6 +53,37 @@ export default function SettingsScreen() {
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+
+  const renameAccount = (a: PlaidAccount) => {
+    Alert.prompt(
+      "Rename account",
+      `Enter a nickname for ••••${a.mask ?? "****"}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Save",
+          onPress: async (value) => {
+            const nickname = value?.trim() || null;
+            try {
+              await apiFetch(`/api/plaid/accounts/${a.id}`, {
+                method: "PATCH",
+                body: { nickname },
+              });
+              setAccounts((prev) =>
+                prev.map((acc) =>
+                  acc.id === a.id ? { ...acc, nickname } : acc
+                )
+              );
+            } catch {
+              Alert.alert("Error", "Could not save nickname.");
+            }
+          },
+        },
+      ],
+      "plain-text",
+      a.nickname ?? a.name
+    );
+  };
   const [signingOut, setSigningOut] = useState(false);
 
   const [splitwiseStatus, setSplitwiseStatus] = useState<{
@@ -391,17 +427,30 @@ export default function SettingsScreen() {
           ) : (
             <View style={styles.accountList}>
               {accounts.map((a) => (
-                <View key={a.account_id} style={[styles.accountRow, { borderBottomColor: theme.borderLight }]}>
-                  <View style={[styles.accountIcon, { backgroundColor: theme.primary }]}>
-                    <Text style={styles.accountIconText}>{a.name[0]?.toUpperCase() ?? "?"}</Text>
-                  </View>
+                <TouchableOpacity
+                  key={a.account_id}
+                  style={[styles.accountRow, { borderBottomColor: theme.borderLight }]}
+                  onPress={() => renameAccount(a)}
+                  activeOpacity={0.7}
+                >
+                  <MerchantLogo
+                    merchantName={a.institution_name ?? a.name}
+                    size={40}
+                    fallbackText={a.institution_name ?? a.name}
+                    style={styles.accountIcon}
+                  />
                   <View style={styles.accountInfo}>
-                    <Text style={[styles.bankName, { color: theme.text }]}>{a.name}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={[styles.bankName, { color: theme.text }]}>
+                        {a.nickname ?? a.name}
+                      </Text>
+                      <Ionicons name="pencil-outline" size={12} color={theme.textTertiary} />
+                    </View>
                     <Text style={[styles.accountMask, { color: theme.textTertiary }]}>
                       {(a.subtype ?? a.type ?? "Account").replace(/_/g, " ")} ••••{a.mask ?? "****"}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -565,6 +614,7 @@ const styles = StyleSheet.create({
   accountIcon: {
     width: 40,
     height: 40,
+    borderRadius: 10,
     borderRadius: radii.sm,
     alignItems: "center",
     justifyContent: "center",

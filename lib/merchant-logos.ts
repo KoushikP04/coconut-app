@@ -49,6 +49,7 @@ const MERCHANT_DOMAINS: Record<string, string> = {
   chevron: "chevron.com",
   exxon: "exxonmobil.com",
   bp: "bp.com",
+  fandango: "fandango.com",
 };
 
 export function getMerchantLogoDomain(merchantName: string): string | null {

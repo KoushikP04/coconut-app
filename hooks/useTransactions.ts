@@ -26,6 +26,11 @@ export interface Transaction {
   alreadySplit?: boolean;
   /** Internal `transactions.id` for APIs that need DB uuid */
   dbId?: string;
+  /**
+   * Parsed receipt id when this bank charge is linked to an email receipt (same id as /api/receipt/* on web).
+   * Backend may send `receipt_id` or `receiptId`.
+   */
+  receiptId?: string | null;
 }
 
 /** `api_unreachable` = HTTP 404 on /api/plaid/status (usually wrong EXPO_PUBLIC_API_URL, not auth). */
@@ -118,7 +123,15 @@ export function useTransactions() {
       .then((data) => {
         if (cancelled) return;
         if (Array.isArray(data)) {
-          setTransactions(data as Transaction[]);
+          setTransactions(
+            (data as unknown[]).map((raw) => {
+              const t = raw as Record<string, unknown>;
+              const rid = t.receipt_id ?? t.receiptId;
+              const base = { ...t } as unknown as Transaction;
+              if (rid != null && rid !== "") base.receiptId = String(rid);
+              return base;
+            })
+          );
           if (__DEV__) console.log("[pipeline:tx] 4. output", { count: (data as unknown[]).length });
         }
       })

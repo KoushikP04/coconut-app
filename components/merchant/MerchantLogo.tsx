@@ -30,9 +30,12 @@ export function MerchantLogo({
     return getMerchantLogoUrl(merchantName, Math.round(size * 2.2));
   }, [merchantName, size, errored]);
 
-  const initial = fallbackText?.trim()
-    ? fallbackText.trim().slice(0, 2).toUpperCase()
-    : (merchantName?.trim()?.charAt(0) ?? "?").toUpperCase();
+  const initial = (() => {
+    const src = (fallbackText?.trim() || merchantName?.trim() || "");
+    const words = src.split(/\s+/).filter((w) => /^[A-Za-z0-9]/.test(w));
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return (words[0]?.[0] ?? "").toUpperCase() || null;
+  })();
 
   const bg = backgroundColor ?? "rgba(31,35,40,0.08)";
   const ring = borderColor ?? "rgba(31,35,40,0.14)";
@@ -46,9 +49,9 @@ export function MerchantLogo({
           resizeMode="contain"
           onError={() => setErrored(true)}
         />
-      ) : (
+      ) : initial ? (
         <Text style={[s.initial, { fontSize: Math.max(10, size * 0.34), color: colors.primary }]}>{initial}</Text>
-      )}
+      ) : null}
     </View>
   );
 }

@@ -21,6 +21,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuth, useUser } from "@clerk/expo";
+import { useApiFetch } from "../../lib/api";
+import { fetchReceiptDetailForTransaction } from "../../lib/fetch-receipt-detail";
+import { getDemoItemizedReceipt } from "../../lib/demo-receipt-itemized";
+import { ItemizedReceiptPreview } from "../../components/ItemizedReceiptPreview";
+import type { ReceiptItem } from "../../lib/receipt-split";
 import { useGroupsSummary } from "../../hooks/useGroups";
 import { useTransactions, type Transaction } from "../../hooks/useTransactions";
 import { useDemoMode } from "../../lib/demo-mode-context";
@@ -138,6 +143,18 @@ export default function BalancesPrototypeScreen() {
   const [bankSearch, setBankSearch] = useState("");
   const [bankFilter, setBankFilter] = useState<"all" | "unsplit">("all");
   const [refreshing, setRefreshing] = useState(false);
+  const apiFetch = useApiFetch();
+  const [itemizedReceipt, setItemizedReceipt] = useState<{
+    items: ReceiptItem[];
+    merchantName: string;
+    subtotal: number;
+    tax: number;
+    tip: number;
+    total: number;
+    extras: Array<{ name: string; amount: number }>;
+  } | null>(null);
+  const [itemizedLoading, setItemizedLoading] = useState(false);
+  const [itemizedError, setItemizedError] = useState<string | null>(null);
 
   // Avoid treating Clerk's initial isSignedIn=false/undefined as "guest" — that flashed demo bank while session loads.
   const useDemoBankUi = isDemoOn || (authLoaded && !isSignedIn);
@@ -164,6 +181,47 @@ export default function BalancesPrototypeScreen() {
   }, [useDemoBankUi, linked, bankVisibleTransactions, dismissedBank]);
 
   const stripRows = useDemoBankUi ? demoStripRows : liveStripRows;
+
+  useEffect(() => {
+    if (!selectedStrip) {
+      setItemizedReceipt(null);
+      setItemizedError(null);
+      setItemizedLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setItemizedReceipt(null);
+    setItemizedError(null);
+    if (selectedStrip.receiptId === "__demo__") {
+      setItemizedReceipt(getDemoItemizedReceipt());
+      setItemizedLoading(false);
+      return;
+    }
+    if (!selectedStrip.receiptId) {
+      setItemizedLoading(false);
+      return;
+    }
+    setItemizedLoading(true);
+    fetchReceiptDetailForTransaction(apiFetch, selectedStrip.receiptId)
+      .then((d) => {
+        if (cancelled) return;
+        if (d) setItemizedReceipt(d);
+        else
+          setItemizedError(
+            "Could not load line items. Ensure the web API exposes GET /api/receipt/[id] for this receipt."
+          );
+      })
+      .catch(() => {
+        if (!cancelled) setItemizedError("Could not load receipt details.");
+      })
+      .finally(() => {
+        if (!cancelled) setItemizedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStrip, apiFetch]);
+
   const allLinkedBankRows = useMemo(() => {
     if (!linked) return [];
     return bankVisibleTransactions
@@ -313,7 +371,7 @@ export default function BalancesPrototypeScreen() {
                   <Text style={styles.bankAmt}>${item.amount.toFixed(2)}</Text>
                   <View style={styles.bankCta}>
                     <Text style={styles.bankCtaText}>
-                      {item.cardDetailIsReceipt ? "Tap for details" : "Split this"}
+                      {item.cardDetailIsReceipt ? "View receipt" : "Split this"}
                     </Text>
                   </View>
                 </Pressable>
@@ -400,7 +458,7 @@ export default function BalancesPrototypeScreen() {
                     <Text style={styles.bankAmt}>${item.amount.toFixed(2)}</Text>
                     <View style={styles.bankCta}>
                       <Text style={styles.bankCtaText}>
-                        {item.cardDetailIsReceipt ? "Tap for details" : "Split this"}
+                        {item.cardDetailIsReceipt ? "View receipt" : "Split this"}
                       </Text>
                     </View>
                   </Pressable>
@@ -608,7 +666,11 @@ export default function BalancesPrototypeScreen() {
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
             {selectedStrip ? (
-              <>
+              <ScrollView
+                style={styles.sheetScroll}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
                 <View style={styles.sheetHead}>
                   <View style={styles.sheetEmoji}>
                     <MerchantLogo
@@ -634,6 +696,27 @@ export default function BalancesPrototypeScreen() {
                     <Text style={styles.emailSnippet}>{selectedStrip.receiptBoxText}</Text>
                   </View>
                 ) : null}
+                {selectedStrip.cardDetailIsReceipt && selectedStrip.receiptId ? (
+                  <>
+                    <Text style={styles.itemizedSectionTitle}>Itemized receipt</Text>
+                    <ItemizedReceiptPreview
+                      loading={itemizedLoading}
+                      error={itemizedError}
+                      merchantName={itemizedReceipt?.merchantName ?? ""}
+                      items={itemizedReceipt?.items ?? []}
+                      subtotal={itemizedReceipt?.subtotal ?? 0}
+                      tax={itemizedReceipt?.tax ?? 0}
+                      tip={itemizedReceipt?.tip ?? 0}
+                      extras={itemizedReceipt?.extras ?? []}
+                      total={itemizedReceipt?.total ?? selectedStrip.amount}
+                    />
+                  </>
+                ) : selectedStrip.showReceiptBox && !selectedStrip.receiptId ? (
+                  <Text style={styles.receiptIdHint}>
+                    Line items appear when each transaction includes a receipt id from your backend (same id as web
+                    receipt split).
+                  </Text>
+                ) : null}
                 <TouchableOpacity
                   style={styles.splitBtn}
                   onPress={() => {
@@ -655,7 +738,7 @@ export default function BalancesPrototypeScreen() {
                 <TouchableOpacity style={styles.sheetClose} onPress={() => setSelectedStrip(null)}>
                   <Text style={styles.sheetCloseText}>Close</Text>
                 </TouchableOpacity>
-              </>
+              </ScrollView>
             ) : null}
           </Pressable>
         </Pressable>
@@ -1041,6 +1124,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: font.bold,
     color: prototype.amber,
+  },
+  sheetScroll: { maxHeight: 520 },
+  itemizedSectionTitle: {
+    fontSize: 11,
+    fontFamily: font.extrabold,
+    color: "#8A9098",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  receiptIdHint: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: "#7A8088",
+    lineHeight: 18,
+    marginBottom: 14,
   },
   sheetClose: { alignItems: "center", paddingVertical: 10 },
   sheetCloseText: { fontSize: 15, fontFamily: font.semibold, color: "#3F464F" },

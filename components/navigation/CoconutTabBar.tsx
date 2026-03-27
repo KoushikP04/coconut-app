@@ -9,10 +9,12 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { font, fontSize } from "../../lib/theme";
 import { useState } from "react";
+import { useTheme } from "../../lib/theme-context";
 
 export function CoconutTabBar({ state, navigation }: BottomTabBarProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
   const bottomPad = Math.max(insets.bottom, Platform.OS === "ios" ? 22 : 10);
   const current = state.routes[state.index]?.name;
   const [fabMenuOpen, setFabMenuOpen] = useState(false);
@@ -56,8 +58,8 @@ export function CoconutTabBar({ state, navigation }: BottomTabBarProps) {
   const friendsActive = current === "shared";
   const activityActive = current === "activity";
   const accountActive = current === "settings";
-  const activeColor = "#1F2328";
-  const inactiveColor = "#9AA0A6";
+  const activeColor = theme.text;
+  const inactiveColor = theme.textTertiary;
 
   if (current && hiddenRoutes.has(current)) {
     return null;
@@ -69,8 +71,8 @@ export function CoconutTabBar({ state, navigation }: BottomTabBarProps) {
         styles.bar,
         {
           paddingBottom: bottomPad,
-          backgroundColor: "rgba(255,255,255,0.97)",
-          borderTopColor: "#E6DFDA",
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
         },
       ]}
     >
@@ -164,27 +166,27 @@ export function CoconutTabBar({ state, navigation }: BottomTabBarProps) {
         onRequestClose={() => setFabMenuOpen(false)}
       >
         <Pressable style={styles.fabOverlay} onPress={() => setFabMenuOpen(false)}>
-          <Pressable style={styles.fabMenu} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.fabMenuTitle}>Add</Text>
+          <Pressable style={[styles.fabMenu, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.fabMenuTitle, { color: theme.text }]}>Add</Text>
 
             <TouchableOpacity
-              style={styles.fabMenuRow}
+              style={[styles.fabMenuRow, { borderColor: theme.border }]}
               onPress={() => {
                 setFabMenuOpen(false);
                 goAdd();
               }}
               activeOpacity={0.75}
             >
-              <Ionicons name="create-outline" size={20} color="#1F2328" />
+              <Ionicons name="create-outline" size={20} color={theme.text} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.fabMenuRowTitle}>Add expense</Text>
-                <Text style={styles.fabMenuRowSub}>Split manually with people</Text>
+                <Text style={[styles.fabMenuRowTitle, { color: theme.text }]}>Add expense</Text>
+                <Text style={[styles.fabMenuRowSub, { color: theme.textTertiary }]}>Split manually with people</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#8A9098" />
+              <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.fabMenuRow}
+              style={[styles.fabMenuRow, { borderColor: theme.border }]}
               onPress={() => {
                 setFabMenuOpen(false);
                 triggerMediumHaptic();
@@ -192,12 +194,12 @@ export function CoconutTabBar({ state, navigation }: BottomTabBarProps) {
               }}
               activeOpacity={0.75}
             >
-              <Ionicons name="scan-outline" size={20} color="#1F2328" />
+              <Ionicons name="scan-outline" size={20} color={theme.text} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.fabMenuRowTitle}>Scan receipt</Text>
-                <Text style={styles.fabMenuRowSub}>Parse items, then assign</Text>
+                <Text style={[styles.fabMenuRowTitle, { color: theme.text }]}>Scan receipt</Text>
+                <Text style={[styles.fabMenuRowSub, { color: theme.textTertiary }]}>Parse items, then assign</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#8A9098" />
+              <Ionicons name="chevron-forward" size={18} color={theme.textTertiary} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -205,7 +207,7 @@ export function CoconutTabBar({ state, navigation }: BottomTabBarProps) {
               onPress={() => setFabMenuOpen(false)}
               activeOpacity={0.7}
             >
-              <Text style={styles.fabMenuCancelText}>Cancel</Text>
+              <Text style={[styles.fabMenuCancelText, { color: theme.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
