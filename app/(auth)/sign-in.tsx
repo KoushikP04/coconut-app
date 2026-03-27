@@ -68,6 +68,7 @@ export default function SignInScreen() {
           SIGN_IN_TIMEOUT_MS,
           "Google setActive"
         );
+        router.replace("/(tabs)");
         console.log("[auth-mobile] google_sign_in_success");
       } else {
         console.warn("[auth-mobile] google_sign_in_missing_session");
@@ -108,6 +109,7 @@ export default function SignInScreen() {
           SIGN_IN_TIMEOUT_MS,
           "Password setActive"
         );
+        router.replace("/(tabs)");
         console.log("[auth-mobile] password_sign_in_success");
       } else {
         console.warn("[auth-mobile] password_sign_in_missing_session");
