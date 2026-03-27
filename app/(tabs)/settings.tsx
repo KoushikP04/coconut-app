@@ -378,7 +378,10 @@ export default function SettingsScreen() {
         return;
       }
 
-      const callbackUrl = `${API_URL.replace(/\/$/, "")}/api/splitwise/callback`;
+      // Use the app's custom scheme so ASWebAuthenticationSession watches for
+      // "coconut-dev://" (not "https://") and only dismisses when the server
+      // redirects to the deep link — no intermediate HTML page visible.
+      const callbackUrl = `${scheme}://splitwise-callback`;
 
       if (Platform.OS === "web") {
         await Linking.openURL(url);
