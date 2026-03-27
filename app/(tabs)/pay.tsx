@@ -59,7 +59,18 @@ export default function PayScreen() {
 
   useEffect(() => {
     if (!isInitialized) return;
-    discoverReaders({ discoveryMethod: "tapToPay" });
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!cancelled) await discoverReaders({ discoveryMethod: "tapToPay" });
+      } catch (e: unknown) {
+        const code = (e as { code?: string })?.code;
+        if (code !== "already_discovering") console.warn("[pay] discoverReaders error:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [isInitialized, discoverReaders]);
 
   const connectTapToPay = useCallback(async () => {
