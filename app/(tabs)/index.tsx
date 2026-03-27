@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   TextInput,
   DeviceEventEmitter,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -171,6 +172,7 @@ export default function BalancesPrototypeScreen() {
     merchantName: string;
     merchantType: string | null;
     merchantDetails: Record<string, unknown> | null;
+    rideshare?: import("../../lib/fetch-receipt-detail").ReceiptDetailPayload["rideshare"];
     subtotal: number;
     tax: number;
     tip: number;
@@ -713,34 +715,115 @@ export default function BalancesPrototypeScreen() {
                     </View>
                   </View>
                 ) : null}
-                {itemizedReceipt?.merchantType && itemizedReceipt.merchantDetails ? (
-                  <>
-                    <MerchantEnrichmentCard
-                      merchantType={itemizedReceipt.merchantType}
-                      merchantDetails={itemizedReceipt.merchantDetails}
-                    />
-                    {itemizedReceipt.merchantType === "ecommerce" && itemizedReceipt.items.length > 0 ? (
-                      <MerchantItemsList
-                        items={itemizedReceipt.items}
-                        estimatedDelivery={(itemizedReceipt.merchantDetails as Record<string, unknown>).estimated_delivery as string | undefined}
+                {selectedStrip.cardDetailIsReceipt && selectedStrip.receiptId ? (
+                  itemizedReceipt?.merchantType === "rideshare" ? (
+                    <>
+                      <Text style={styles.itemizedSectionTitle}>Trip details</Text>
+                      {itemizedReceipt.rideshare?.map_url ? (
+                        <Image
+                          source={{ uri: itemizedReceipt.rideshare.map_url }}
+                          style={styles.rideshareMap}
+                          resizeMode="cover"
+                        />
+                      ) : null}
+                      <View style={styles.rideshareRoute}>
+                        <View style={styles.rideshareRouteDots}>
+                          <View style={[styles.routeDot, { backgroundColor: "#22c55e" }]} />
+                          <View style={styles.routeLine} />
+                          <View style={[styles.routeDot, { backgroundColor: "#ef4444" }]} />
+                        </View>
+                        <View style={{ flex: 1, gap: 12 }}>
+                          <View>
+                            <Text style={styles.rideshareLabel}>Pickup</Text>
+                            <Text style={styles.rideshareAddr}>{itemizedReceipt.rideshare?.pickup ?? "—"}</Text>
+                          </View>
+                          <View>
+                            <Text style={styles.rideshareLabel}>Dropoff</Text>
+                            <Text style={styles.rideshareAddr}>{itemizedReceipt.rideshare?.dropoff ?? "—"}</Text>
+                          </View>
+                        </View>
+                      </View>
+                      {(itemizedReceipt.rideshare?.distance || itemizedReceipt.rideshare?.duration || itemizedReceipt.rideshare?.driver_name || itemizedReceipt.rideshare?.vehicle) ? (
+                        <Text style={styles.rideshareMeta}>
+                          {[
+                            itemizedReceipt.rideshare?.distance,
+                            itemizedReceipt.rideshare?.duration,
+                            itemizedReceipt.rideshare?.driver_name ? `Driver: ${itemizedReceipt.rideshare.driver_name}` : undefined,
+                            itemizedReceipt.rideshare?.vehicle,
+                          ].filter(Boolean).join(" · ")}
+                        </Text>
+                      ) : null}
+                      {itemizedReceipt.rideshare?.fare_breakdown ? (
+                        <View style={styles.rideshareBreakdown}>
+                          {Object.entries(itemizedReceipt.rideshare.fare_breakdown).map(([key, val]) => (
+                            <View key={key} style={styles.rideshareBreakdownRow}>
+                              <Text style={styles.rideshareBreakdownLabel}>
+                                {key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                              </Text>
+                              <Text style={styles.rideshareBreakdownAmt}>${Number(val).toFixed(2)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+                      <View style={styles.rideshareTotals}>
+                        {itemizedReceipt.subtotal > 0 ? (
+                          <View style={styles.rideshareBreakdownRow}>
+                            <Text style={styles.rideshareBreakdownLabel}>Subtotal</Text>
+                            <Text style={styles.rideshareBreakdownAmt}>${itemizedReceipt.subtotal.toFixed(2)}</Text>
+                          </View>
+                        ) : null}
+                        {itemizedReceipt.tax > 0 ? (
+                          <View style={styles.rideshareBreakdownRow}>
+                            <Text style={styles.rideshareBreakdownLabel}>Tax</Text>
+                            <Text style={styles.rideshareBreakdownAmt}>${itemizedReceipt.tax.toFixed(2)}</Text>
+                          </View>
+                        ) : null}
+                        {itemizedReceipt.tip > 0 ? (
+                          <View style={styles.rideshareBreakdownRow}>
+                            <Text style={styles.rideshareBreakdownLabel}>Tip</Text>
+                            <Text style={styles.rideshareBreakdownAmt}>${itemizedReceipt.tip.toFixed(2)}</Text>
+                          </View>
+                        ) : null}
+                        <View style={[styles.rideshareBreakdownRow, styles.rideshareTotalRow]}>
+                          <Text style={styles.rideshareTotalLabel}>Total</Text>
+                          <Text style={styles.rideshareTotalAmt}>${itemizedReceipt.total.toFixed(2)}</Text>
+                        </View>
+                      </View>
+                    </>
+                  ) : itemizedReceipt?.merchantType && itemizedReceipt.merchantDetails ? (
+                    <>
+                      <MerchantEnrichmentCard
+                        merchantType={itemizedReceipt.merchantType}
+                        merchantDetails={itemizedReceipt.merchantDetails}
                       />
-                    ) : null}
-                  </>
-                ) : selectedStrip.cardDetailIsReceipt && selectedStrip.receiptId ? (
-                  <>
-                    <Text style={styles.itemizedSectionTitle}>Itemized receipt</Text>
-                    <ItemizedReceiptPreview
-                      loading={itemizedLoading}
-                      error={itemizedError}
-                      merchantName={itemizedReceipt?.merchantName ?? ""}
-                      items={itemizedReceipt?.items ?? []}
-                      subtotal={itemizedReceipt?.subtotal ?? 0}
-                      tax={itemizedReceipt?.tax ?? 0}
-                      tip={itemizedReceipt?.tip ?? 0}
-                      extras={itemizedReceipt?.extras ?? []}
-                      total={itemizedReceipt?.total ?? selectedStrip.amount}
-                    />
-                  </>
+                      {itemizedReceipt.merchantType === "ecommerce" && itemizedReceipt.items.length > 0 ? (
+                        <MerchantItemsList
+                          items={itemizedReceipt.items}
+                          estimatedDelivery={(itemizedReceipt.merchantDetails as Record<string, unknown>).estimated_delivery as string | undefined}
+                        />
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.itemizedSectionTitle}>Itemized receipt</Text>
+                      <ItemizedReceiptPreview
+                        loading={itemizedLoading}
+                        error={itemizedError}
+                        merchantName={itemizedReceipt?.merchantName ?? ""}
+                        items={itemizedReceipt?.items ?? []}
+                        subtotal={itemizedReceipt?.subtotal ?? 0}
+                        tax={itemizedReceipt?.tax ?? 0}
+                        tip={itemizedReceipt?.tip ?? 0}
+                        extras={itemizedReceipt?.extras ?? []}
+                        total={itemizedReceipt?.total ?? selectedStrip.amount}
+                      />
+                    </>
+                  )
+                ) : selectedStrip.showReceiptBox && !selectedStrip.receiptId ? (
+                  <Text style={styles.receiptIdHint}>
+                    Line items appear when each transaction includes a receipt id from your backend (same id as web
+                    receipt split).
+                  </Text>
                 ) : null}
                 <TouchableOpacity
                   style={styles.splitBtn}
@@ -1152,6 +1235,104 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: 8,
+  },
+  receiptIdHint: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: "#7A8088",
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  rideshareMap: {
+    width: "100%",
+    height: 160,
+    borderRadius: radii.md,
+    marginBottom: 12,
+    backgroundColor: "#f0f0f0",
+  },
+  rideshareRoute: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 8,
+  },
+  rideshareRouteDots: {
+    alignItems: "center",
+    paddingTop: 4,
+    gap: 0,
+  },
+  routeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  routeLine: {
+    width: 1,
+    height: 32,
+    backgroundColor: "#d1d5db",
+  },
+  rideshareLabel: {
+    fontSize: 11,
+    fontFamily: font.medium,
+    color: "#9ca3af",
+    marginBottom: 2,
+  },
+  rideshareAddr: {
+    fontSize: 13,
+    fontFamily: font.regular,
+    color: "#1f2937",
+    lineHeight: 18,
+  },
+  rideshareMeta: {
+    fontSize: 12,
+    fontFamily: font.regular,
+    color: "#6b7280",
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  rideshareBreakdown: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e5e7eb",
+    marginTop: 8,
+    paddingTop: 8,
+    gap: 4,
+  },
+  rideshareBreakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  rideshareBreakdownLabel: {
+    fontSize: 12,
+    fontFamily: font.regular,
+    color: "#6b7280",
+  },
+  rideshareBreakdownAmt: {
+    fontSize: 12,
+    fontFamily: font.regular,
+    color: "#6b7280",
+  },
+  rideshareTotals: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e5e7eb",
+    marginTop: 8,
+    paddingTop: 8,
+    gap: 4,
+  },
+  rideshareTotalRow: {
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#e5e7eb",
+  },
+  rideshareTotalLabel: {
+    fontSize: 14,
+    fontFamily: font.semibold,
+    color: "#1f2937",
+  },
+  rideshareTotalAmt: {
+    fontSize: 14,
+    fontFamily: font.semibold,
+    color: "#1f2937",
   },
   sheetClose: { alignItems: "center", paddingVertical: 10 },
   sheetCloseText: { fontSize: 15, fontFamily: font.semibold, color: "#3F464F" },

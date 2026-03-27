@@ -160,12 +160,29 @@ export default function SettingsScreen() {
     splitwise?: string;
     import?: string;
     splitwise_error?: string;
+    connected?: string;
+    error?: string;
   }>();
   const splitwiseErrorAlertShown = useRef(false);
 
   useEffect(() => {
     splitwiseStatusRef.current = splitwiseStatus;
   }, [splitwiseStatus]);
+
+  const [gmailStatus, setGmailStatus] = useState<{
+    connected: boolean;
+    email: string | null;
+    lastScanAt: string | null;
+  } | null>(null);
+  const [gmailScanning, setGmailScanning] = useState(false);
+  const [gmailDisconnecting, setGmailDisconnecting] = useState(false);
+  const [gmailScanResult, setGmailScanResult] = useState<{
+    ok: boolean;
+    inserted?: number;
+    matched?: number;
+    error?: string;
+  } | null>(null);
+  const gmailConnectedHandled = useRef(false);
 
   const fetchAccounts = async (forceRefresh = false) => {
     setAccountsLoading(true);
@@ -269,10 +286,23 @@ export default function SettingsScreen() {
     [user, apiFetch]
   );
 
+  const fetchGmailStatus = async () => {
+    if (!user) return;
+    try {
+      const res = await apiFetch("/api/gmail/status");
+      if (!res.ok) { setGmailStatus(null); return; }
+      const data = await res.json();
+      setGmailStatus(data as { connected: boolean; email: string | null; lastScanAt: string | null });
+    } catch {
+      setGmailStatus(null);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     if (!isFocused) return;
     void fetchSplitwiseStatus({ showLoading: true });
+    void fetchGmailStatus();
   }, [isFocused, user, fetchSplitwiseStatus]);
 
   // After Safari OAuth, token can exist before the app was opened — refresh when returning to foreground.
@@ -285,6 +315,77 @@ export default function SettingsScreen() {
     return () => sub.remove();
   }, [user, isFocused, fetchSplitwiseStatus]);
 
+  const connectGmail = async () => {
+    try {
+      const redirect = "coconut://settings";
+      const res = await apiFetch(`/api/gmail/auth?redirect=${encodeURIComponent(redirect)}`);
+      const data = await res.json().catch(() => ({}));
+      const authUrl = (data as { authUrl?: string }).authUrl;
+      if (authUrl) {
+        void Linking.openURL(authUrl);
+      } else {
+        Alert.alert("Gmail", "Could not start Gmail connection. Try again.");
+      }
+    } catch {
+      Alert.alert("Gmail", "Could not start Gmail connection. Check your connection.");
+    }
+  };
+
+  const scanGmail = async () => {
+    setGmailScanning(true);
+    setGmailScanResult(null);
+    try {
+      const res = await apiFetch("/api/gmail/scan", { method: "POST", body: {} });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 403 && (data as { authError?: boolean }).authError) {
+          setGmailStatus((prev) => prev ? { ...prev, connected: false } : null);
+          Alert.alert("Gmail", "Gmail connection expired. Please reconnect.");
+        } else {
+          setGmailScanResult({ ok: false, error: (data as { error?: string }).error ?? "Scan failed. Try again." });
+        }
+      } else {
+        const d = data as { inserted?: number; matched?: number };
+        setGmailScanResult({ ok: true, inserted: d.inserted ?? 0, matched: d.matched ?? 0 });
+        void fetchGmailStatus();
+      }
+    } catch {
+      setGmailScanResult({ ok: false, error: "Scan failed. Check your connection." });
+    } finally {
+      setGmailScanning(false);
+    }
+  };
+
+  const disconnectGmail = () => {
+    Alert.alert(
+      "Disconnect Gmail?",
+      "Removes your Gmail connection. Matched receipts stay in Coconut.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Disconnect",
+          style: "destructive",
+          onPress: async () => {
+            setGmailDisconnecting(true);
+            try {
+              const res = await apiFetch("/api/gmail/disconnect", { method: "POST" });
+              if (!res.ok) {
+                Alert.alert("Error", "Could not disconnect. Try again.");
+              } else {
+                setGmailStatus({ connected: false, email: null, lastScanAt: null });
+                setGmailScanResult(null);
+              }
+            } catch {
+              Alert.alert("Error", "Could not disconnect. Check your connection.");
+            } finally {
+              setGmailDisconnecting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     if (!user) return;
     if (splitwiseAutoImportStarted.current) return;
@@ -293,6 +394,20 @@ export default function SettingsScreen() {
       void startSplitwiseImport();
     }
   }, [splitwiseParams?.splitwise, splitwiseParams?.import, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (gmailConnectedHandled.current) return;
+    if (splitwiseParams?.connected === "true") {
+      gmailConnectedHandled.current = true;
+      void fetchGmailStatus();
+      router.replace("/(tabs)/settings");
+    } else if (splitwiseParams?.error === "auth_failed") {
+      gmailConnectedHandled.current = true;
+      Alert.alert("Gmail", "Could not connect Gmail. Please try again.");
+      router.replace("/(tabs)/settings");
+    }
+  }, [splitwiseParams?.connected, splitwiseParams?.error, user]);
 
   useEffect(() => {
     const err = splitwiseParams?.splitwise_error;
@@ -929,6 +1044,77 @@ export default function SettingsScreen() {
                   </Text>
                 </TouchableOpacity>
               )}
+            </View>
+          )}
+        </View>
+
+        {/* Email receipts */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Email receipts</Text>
+          <Text style={[styles.sectionBlurb, { color: theme.textTertiary }]}>
+            Connect Gmail to automatically match email receipts to your bank transactions.
+          </Text>
+
+          {gmailScanResult ? (
+            <View
+              style={[
+                styles.resultBox,
+                {
+                  backgroundColor: gmailScanResult.ok ? "#EEF7F2" : "#FEE2E2",
+                  borderColor: gmailScanResult.ok ? "#C3E0D3" : theme.errorLight,
+                },
+              ]}
+            >
+              <Text style={[styles.resultTitle, { color: gmailScanResult.ok ? theme.text : theme.error }]}>
+                {gmailScanResult.ok ? "Scan complete" : "Scan failed"}
+              </Text>
+              {gmailScanResult.ok ? (
+                <Text style={[styles.resultDetail, { color: theme.textQuaternary }]}>
+                  {gmailScanResult.inserted ?? 0} receipts found · {gmailScanResult.matched ?? 0} matched to transactions
+                </Text>
+              ) : gmailScanResult.error ? (
+                <Text style={[styles.resultDetail, { color: theme.textQuaternary }]}>{gmailScanResult.error}</Text>
+              ) : null}
+            </View>
+          ) : null}
+
+          {!gmailStatus?.connected ? (
+            <View style={{ gap: 12, marginTop: 4 }}>
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: theme.primary }]}
+                onPress={connectGmail}
+                disabled={gmailScanning}
+              >
+                <Text style={styles.primaryBtnText}>Connect Gmail</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{ gap: 12, marginTop: 4 }}>
+              {gmailStatus.email ? (
+                <Text style={[styles.muted, { color: theme.textTertiary }]}>{gmailStatus.email}</Text>
+              ) : null}
+              <TouchableOpacity
+                style={[styles.primaryBtn, { backgroundColor: theme.primary }, gmailScanning && styles.disabled]}
+                onPress={scanGmail}
+                disabled={gmailScanning || gmailDisconnecting}
+              >
+                {gmailScanning ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.primaryBtnText}>Scan for receipts</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.splitwiseDisconnectBtn, { borderColor: theme.errorLight, backgroundColor: theme.surfaceSecondary }]}
+                onPress={disconnectGmail}
+                disabled={gmailDisconnecting || gmailScanning}
+              >
+                {gmailDisconnecting ? (
+                  <ActivityIndicator size="small" color={theme.error} />
+                ) : (
+                  <Text style={[styles.splitwiseDisconnectBtnText, { color: theme.error }]}>Disconnect Gmail</Text>
+                )}
+              </TouchableOpacity>
             </View>
           )}
         </View>

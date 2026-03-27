@@ -17,6 +17,16 @@ export type ReceiptDetailPayload = {
   tip?: number;
   total?: number;
   extras?: Array<{ name: string; amount: number }>;
+  rideshare?: {
+    map_url?: string;
+    pickup?: string;
+    dropoff?: string;
+    distance?: string;
+    duration?: string;
+    driver_name?: string;
+    vehicle?: string;
+    fare_breakdown?: Record<string, number>;
+  };
   receipt_items?: Array<{
     id: string;
     name: string;
@@ -54,6 +64,7 @@ export async function fetchReceiptDetailForTransaction(
   merchantName: string;
   merchantType: string | null;
   merchantDetails: Record<string, unknown> | null;
+  rideshare?: ReceiptDetailPayload["rideshare"];
   subtotal: number;
   tax: number;
   tip: number;
@@ -87,6 +98,7 @@ export async function fetchReceiptDetailForTransaction(
       merchantName: data.merchant_name ?? "",
       merchantType: data.merchant_type ?? null,
       merchantDetails: data.merchant_details ?? null,
+      rideshare: data.rideshare,
       subtotal,
       tax,
       tip,
