@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Linking,
   DeviceEventEmitter,
   Platform,
+  AppState,
+  type AppStateStatus,
 } from "react-native";
 import { MerchantLogo } from "../../components/merchant/MerchantLogo";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -90,6 +92,8 @@ export default function SettingsScreen() {
     configured: boolean;
     connected: boolean;
     connectedAt?: string | null;
+    /** From server: Splitwise-sourced groups you own (0 if authorized but never imported / cleared). */
+    importedSplitwiseGroupCount?: number;
   } | null>(null);
   const [splitwiseImporting, setSplitwiseImporting] = useState(false);
   const [splitwiseClearing, setSplitwiseClearing] = useState(false);
@@ -171,7 +175,7 @@ export default function SettingsScreen() {
     prevFocused.current = isFocused;
   }, [isFocused, linked]);
 
-  const fetchSplitwiseStatus = async () => {
+  const fetchSplitwiseStatus = useCallback(async () => {
     if (!user) return;
     try {
       const res = await apiFetch("/api/splitwise/status");
@@ -179,18 +183,49 @@ export default function SettingsScreen() {
         setSplitwiseStatus(null);
         return;
       }
-      const data = await res.json();
-      setSplitwiseStatus(data);
+      const data: unknown = await res.json();
+      if (
+        typeof data !== "object" ||
+        data === null ||
+        typeof (data as { configured?: unknown }).configured !== "boolean" ||
+        typeof (data as { connected?: unknown }).connected !== "boolean"
+      ) {
+        setSplitwiseStatus(null);
+        return;
+      }
+      const row = data as {
+        configured: boolean;
+        connected: boolean;
+        connectedAt?: string | null;
+        importedSplitwiseGroupCount?: unknown;
+      };
+      const n = row.importedSplitwiseGroupCount;
+      setSplitwiseStatus({
+        configured: row.configured,
+        connected: row.connected,
+        connectedAt: row.connectedAt ?? null,
+        importedSplitwiseGroupCount: typeof n === "number" ? n : 0,
+      });
     } catch {
       setSplitwiseStatus(null);
     }
-  };
+  }, [user, apiFetch]);
 
   useEffect(() => {
     if (!user) return;
     if (!isFocused) return;
     void fetchSplitwiseStatus();
-  }, [isFocused, user]);
+  }, [isFocused, user, fetchSplitwiseStatus]);
+
+  // After Safari OAuth, token can exist before the app was opened — refresh when returning to foreground.
+  useEffect(() => {
+    if (!user) return;
+    const onChange = (s: AppStateStatus) => {
+      if (s === "active" && isFocused) void fetchSplitwiseStatus();
+    };
+    const sub = AppState.addEventListener("change", onChange);
+    return () => sub.remove();
+  }, [user, isFocused, fetchSplitwiseStatus]);
 
   useEffect(() => {
     if (!user) return;
@@ -545,8 +580,8 @@ export default function SettingsScreen() {
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Splitwise</Text>
           <Text style={[styles.sectionBlurb, { color: theme.textTertiary }]}>
-            Connect once in the browser, then import groups and expenses. Disconnect removes Coconut&apos;s copy and your saved
-            Splitwise login.
+            Connect once in the browser, then import groups and expenses. &quot;Disconnect&quot; removes Coconut&apos;s copy and
+            the saved Splitwise token on our servers (your Splitwise account is unchanged).
           </Text>
 
           {splitwiseResult ? (
@@ -589,6 +624,12 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <View style={{ gap: 12, marginTop: 4 }}>
+              {(splitwiseStatus?.importedSplitwiseGroupCount ?? 0) === 0 ? (
+                <Text style={[styles.muted, { color: theme.textTertiary, marginBottom: 4 }]}>
+                  Splitwise is linked to your account, but nothing is imported yet. Open the Shared tab after import, or tap
+                  Import now. If you didn&apos;t mean to connect, use Disconnect to remove the saved login.
+                </Text>
+              ) : null}
               <TouchableOpacity
                 style={[styles.primaryBtn, { backgroundColor: theme.primary }, splitwiseImporting && styles.disabled]}
                 onPress={startSplitwiseImport}
@@ -611,7 +652,9 @@ export default function SettingsScreen() {
                 {splitwiseClearing ? (
                   <ActivityIndicator size="small" color={theme.error} />
                 ) : (
-                  <Text style={[styles.splitwiseDisconnectBtnText, { color: theme.error }]}>Disconnect Splitwise</Text>
+                  <Text style={[styles.splitwiseDisconnectBtnText, { color: theme.error }]}>
+                    Disconnect &amp; remove saved login
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
