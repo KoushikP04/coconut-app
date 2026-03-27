@@ -89,13 +89,14 @@ export function useReceiptSplit(apiFetch: ApiFetch) {
           method: "POST",
           body: formData,
         });
-        let data: Record<string, unknown> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any = {};
         try {
           data = await res.json();
         } catch {
           throw new Error(`Server error (${res.status})`);
         }
-        if (!res.ok) throw new Error((data?.error as string) ?? `Server error (${res.status})`);
+        if (!res.ok) throw new Error(data?.error ?? `Server error (${res.status})`);
 
         const items = (data.receipt_items ?? []).sort(
           (a: { sort_order: number }, b: { sort_order: number }) =>
@@ -158,13 +159,14 @@ export function useReceiptSplit(apiFetch: ApiFetch) {
             merchant_name: editMerchant,
           },
         });
-        let data: Record<string, unknown> = {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any = {};
         try {
           data = await res.json();
         } catch {
           throw new Error(`Server error (${res.status})`);
         }
-        if (!res.ok) throw new Error((data?.error as string) ?? `Server error (${res.status})`);
+        if (!res.ok) throw new Error(data?.error ?? `Server error (${res.status})`);
 
         const serverItems = (data.receipt_items ?? [])
           .sort(
