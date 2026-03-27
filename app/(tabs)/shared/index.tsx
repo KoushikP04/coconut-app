@@ -24,12 +24,14 @@ import { useDemoMode } from "../../../lib/demo-mode-context";
 import { SharedSkeletonScreen } from "../../../components/ui";
 import { useDemoData } from "../../../lib/demo-context";
 import { colors, font, radii, prototype } from "../../../lib/theme";
+import { useTheme } from "../../../lib/theme-context";
 import { friendBalanceLines, formatSplitCurrencyAmount, groupBalanceLines } from "../../../lib/format-split-money";
 
 const AVATAR_COLORS = ["#4A6CF7", "#E8507A", "#F59E0B", "#8B5CF6", "#64748B", "#334155"] as const;
 
 function SLabel({ children }: { children: ReactNode }) {
-  return <Text style={st.sLabel}>{children}</Text>;
+  const { theme } = useTheme();
+  return <Text style={[st.sLabel, { color: theme.textTertiary }]}>{children}</Text>;
 }
 
 function Avatar({ name, size = 40 }: { name: string; size?: number }) {
@@ -60,6 +62,7 @@ function timeAgo(iso: string) {
 }
 
 export default function SharedIndex() {
+  const { theme } = useTheme();
   const { userId } = useAuth();
   const apiFetch = useApiFetch();
   const isFocused = useIsFocused();
@@ -379,7 +382,7 @@ export default function SharedIndex() {
   });
 
   return (
-    <SafeAreaView style={st.container} edges={["top"]}>
+    <SafeAreaView style={[st.container, { backgroundColor: theme.background }]} edges={["top"]}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={st.page}
@@ -388,8 +391,8 @@ export default function SharedIndex() {
       >
         <View style={st.header}>
           <View>
-            <Text style={st.title}>People & groups</Text>
-            <Text style={st.titleSub}>Manage everyone you split with</Text>
+            <Text style={[st.title, { color: theme.text }]}>People & groups</Text>
+            <Text style={[st.titleSub, { color: theme.textTertiary }]}>Manage everyone you split with</Text>
           </View>
         </View>
 
@@ -406,7 +409,7 @@ export default function SharedIndex() {
             <Text style={st.actionBtnText}>Add friend</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={st.actionBtnAlt}
+            style={[st.actionBtnAlt, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}
             onPress={() => {
               setShowCreate((v) => !v);
               setShowAddFriend(false);
@@ -414,26 +417,26 @@ export default function SharedIndex() {
             activeOpacity={0.8}
           >
             <Ionicons name="people" size={16} color={colors.primary} />
-            <Text style={st.actionBtnAltText}>New group</Text>
+            <Text style={[st.actionBtnAltText, { color: theme.text }]}>New group</Text>
           </TouchableOpacity>
         </View>
 
         {showAddFriend ? (
-          <View style={st.formCard}>
+          <View style={[st.formCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <TextInput
-              style={st.formInput}
+              style={[st.formInput, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary, color: theme.text }]}
               value={friendName}
               onChangeText={setFriendName}
               placeholder="Friend name"
-              placeholderTextColor="#8A9098"
+              placeholderTextColor={theme.textTertiary}
               autoFocus
             />
             <TextInput
-              style={[st.formInput, { marginTop: 8 }]}
+              style={[st.formInput, { marginTop: 8, borderColor: theme.border, backgroundColor: theme.surfaceSecondary, color: theme.text }]}
               value={friendEmail}
               onChangeText={setFriendEmail}
               placeholder="Email (optional)"
-              placeholderTextColor="#8A9098"
+              placeholderTextColor={theme.textTertiary}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -442,20 +445,20 @@ export default function SharedIndex() {
                 <Text style={st.formPrimaryBtnText}>{addingFriend ? "Adding…" : "Add"}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setShowAddFriend(false); setFriendName(""); setFriendEmail(""); }}>
-                <Text style={st.formCancelText}>Cancel</Text>
+                <Text style={[st.formCancelText, { color: theme.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : null}
 
         {showCreate ? (
-          <View style={st.formCard}>
+          <View style={[st.formCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <TextInput
-              style={st.formInput}
+              style={[st.formInput, { borderColor: theme.border, backgroundColor: theme.surfaceSecondary, color: theme.text }]}
               value={groupName}
               onChangeText={setGroupName}
               placeholder="Group name"
-              placeholderTextColor="#8A9098"
+              placeholderTextColor={theme.textTertiary}
               autoFocus
             />
             <View style={st.formActions}>
@@ -463,7 +466,7 @@ export default function SharedIndex() {
                 <Text style={st.formPrimaryBtnText}>{creating ? "Creating…" : "Create"}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => { setShowCreate(false); setGroupName(""); }}>
-                <Text style={st.formCancelText}>Cancel</Text>
+                <Text style={[st.formCancelText, { color: theme.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -471,13 +474,13 @@ export default function SharedIndex() {
 
         <SLabel>Friends</SLabel>
         {!friends.length ? (
-          <View style={[st.groupedCard, st.emptyInner]}>
-            <Ionicons name="person-add-outline" size={30} color="#8A9098" />
-            <Text style={st.emptyTitle}>No friends yet</Text>
-            <Text style={st.emptySub}>Add a friend to start splitting expenses.</Text>
+          <View style={[st.groupedCard, st.emptyInner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Ionicons name="person-add-outline" size={30} color={theme.textTertiary} />
+            <Text style={[st.emptyTitle, { color: theme.text }]}>No friends yet</Text>
+            <Text style={[st.emptySub, { color: theme.textTertiary }]}>Add a friend to start splitting expenses.</Text>
           </View>
         ) : (
-          <View style={st.groupedCard}>
+          <View style={[st.groupedCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {friends.map((f, i) => (
               <View key={f.key}>
                 <TouchableOpacity
@@ -498,7 +501,7 @@ export default function SharedIndex() {
                 >
                   <Avatar name={f.displayName} size={42} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={st.rowName}>{f.displayName}</Text>
+                    <Text style={[st.rowName, { color: theme.text }]}>{f.displayName}</Text>
                     <Text style={st.rowSub}>
                       {(() => {
                         const lines = friendBalanceLines(f);
@@ -530,7 +533,7 @@ export default function SharedIndex() {
                   </View>
                   <Ionicons name="chevron-forward" size={14} color="#8A9098" style={{ marginLeft: 6, opacity: 0.5 }} />
                 </TouchableOpacity>
-                {i < friends.length - 1 ? <View style={st.rowSep} /> : null}
+                {i < friends.length - 1 ? <View style={[st.rowSep, { backgroundColor: theme.borderLight }]} /> : null}
               </View>
             ))}
           </View>
@@ -538,13 +541,13 @@ export default function SharedIndex() {
 
         <SLabel>Groups</SLabel>
         {!visibleGroups.length ? (
-          <View style={[st.groupedCard, st.emptyInner]}>
-            <Ionicons name="people-outline" size={30} color="#8A9098" />
-            <Text style={st.emptyTitle}>No groups yet</Text>
-            <Text style={st.emptySub}>Create a group for trips, roommates, or dinners.</Text>
+          <View style={[st.groupedCard, st.emptyInner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Ionicons name="people-outline" size={30} color={theme.textTertiary} />
+            <Text style={[st.emptyTitle, { color: theme.text }]}>No groups yet</Text>
+            <Text style={[st.emptySub, { color: theme.textTertiary }]}>Create a group for trips, roommates, or dinners.</Text>
           </View>
         ) : (
-          <View style={st.groupedCard}>
+          <View style={[st.groupedCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {visibleGroups.map((g, i) => (
               <View key={g.id}>
                 <TouchableOpacity
@@ -552,12 +555,12 @@ export default function SharedIndex() {
                   onPress={() => router.push({ pathname: "/(tabs)/shared/group", params: { id: g.id } })}
                   activeOpacity={0.75}
                 >
-                  <View style={st.groupIcon}>
-                  <Ionicons name="people" size={18} color="#1F2328" />
+                  <View style={[st.groupIcon, { backgroundColor: theme.surfaceSecondary }]}>
+                  <Ionicons name="people" size={18} color={theme.text} />
                   </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={st.rowName}>{g.name}</Text>
-                    <Text style={st.rowSub}>{g.memberCount} members · {timeAgo(g.lastActivityAt)}</Text>
+                    <Text style={[st.rowName, { color: theme.text }]}>{g.name}</Text>
+                    <Text style={[st.rowSub, { color: theme.textTertiary }]}>{g.memberCount} members · {timeAgo(g.lastActivityAt)}</Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     {groupBalanceLines(g).length === 0 ? (
@@ -573,7 +576,7 @@ export default function SharedIndex() {
                   </View>
                   <Ionicons name="chevron-forward" size={14} color="#8A9098" style={{ marginLeft: 6, opacity: 0.5 }} />
                 </TouchableOpacity>
-                {i < visibleGroups.length - 1 ? <View style={st.rowSep} /> : null}
+                {i < visibleGroups.length - 1 ? <View style={[st.rowSep, { backgroundColor: theme.borderLight }]} /> : null}
               </View>
             ))}
           </View>

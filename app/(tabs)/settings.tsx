@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   View,
   Text,
@@ -29,6 +30,11 @@ import { colors, font, shadow, radii } from "../../lib/theme";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://coconut-app.dev";
 
+/** Strip emoji and normalize whitespace — Plaid sometimes adds emoji to account names */
+function stripEmoji(str: string): string {
+  return str.replace(/\p{Emoji_Presentation}/gu, "").replace(/\s+/g, " ").trim();
+}
+
 type PlaidAccount = {
   id: string;
   account_id: string;
@@ -55,6 +61,41 @@ export default function SettingsScreen() {
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showAllAccounts, setShowAllAccounts] = useState(false);
+  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
+  const [accountSort, setAccountSort] = useState<"default" | "name" | "institution" | "type">("default");
+  const ACCOUNTS_PREVIEW = 5;
+  const STARS_KEY = "coconut:starred_accounts";
+
+  // Load persisted stars on mount
+  useEffect(() => {
+    AsyncStorage.getItem(STARS_KEY).then((raw) => {
+      if (raw) {
+        try { setStarredIds(new Set(JSON.parse(raw))); } catch { /* ignore */ }
+      }
+    });
+  }, []);
+
+  const toggleStar = (id: string) => {
+    setStarredIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      AsyncStorage.setItem(STARS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const sortedAccounts = useMemo(() => {
+    const starred = accounts.filter((a) => starredIds.has(a.id));
+    const rest = accounts.filter((a) => !starredIds.has(a.id));
+    const sorter = (arr: PlaidAccount[]) => {
+      if (accountSort === "name") return [...arr].sort((a, b) => (a.nickname ?? a.name).localeCompare(b.nickname ?? b.name));
+      if (accountSort === "institution") return [...arr].sort((a, b) => (a.institution_name ?? "").localeCompare(b.institution_name ?? ""));
+      if (accountSort === "type") return [...arr].sort((a, b) => (a.subtype ?? a.type ?? "").localeCompare(b.subtype ?? b.type ?? ""));
+      return arr;
+    };
+    return [...sorter(starred), ...sorter(rest)];
+  }, [accounts, starredIds, accountSort]);
 
   const renameAccount = (a: PlaidAccount) => {
     Alert.prompt(
@@ -83,7 +124,7 @@ export default function SettingsScreen() {
         },
       ],
       "plain-text",
-      a.nickname ?? a.name
+      stripEmoji(a.nickname ?? a.name)
     );
   };
   const [signingOut, setSigningOut] = useState(false);
@@ -131,6 +172,7 @@ export default function SettingsScreen() {
       }
       const data = await res.json();
       const accountsList = Array.isArray(data?.accounts) ? data.accounts : [];
+      if (__DEV__) console.log("[accounts] total:", accountsList.length, accountsList.map((a: PlaidAccount) => `${a.institution_name ?? "?"} | ${a.name} | ${a.subtype ?? a.type} ••••${a.mask}`));
       setAccounts(accountsList);
     } catch {
       setAccountsError("Failed to load accounts");
@@ -516,7 +558,12 @@ export default function SettingsScreen() {
         {/* Connected banks */}
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}>
           <View style={styles.row}>
-            <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Connected banks</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text style={[styles.sectionTitle, { color: theme.text, marginBottom: 0 }]}>Connected banks</Text>
+              <TouchableOpacity onPress={() => fetchAccounts(true)} hitSlop={10} disabled={accountsLoading}>
+                <Ionicons name="refresh-outline" size={16} color={accountsLoading ? theme.textTertiary : theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity onPress={() => Linking.openURL(connectUrl)} hitSlop={8}>
               <Text style={[styles.link, { color: theme.primary }]}>{linked ? "Add account" : "Connect"}</Text>
             </TouchableOpacity>
@@ -529,32 +576,102 @@ export default function SettingsScreen() {
             <Text style={[styles.muted, { color: theme.textQuaternary }]}>No bank accounts linked.</Text>
           ) : (
             <View style={styles.accountList}>
-              {accounts.map((a) => (
+              {/* Sort bar — only visible when list is expanded */}
+              {showAllAccounts && accounts.length > 1 ? (
+                <View style={[styles.sortBar, { backgroundColor: theme.surfaceSecondary, borderColor: theme.borderLight }]}>
+                  <Text style={[styles.sortLabel, { color: theme.textTertiary }]}>Sort</Text>
+                  <View style={styles.sortChips}>
+                    {(["default", "name", "institution", "type"] as const).map((s) => {
+                      const active = accountSort === s;
+                      return (
+                        <TouchableOpacity
+                          key={s}
+                          onPress={() => setAccountSort(s)}
+                          activeOpacity={0.7}
+                          style={[styles.sortChip, { borderColor: active ? theme.primary : theme.border, backgroundColor: active ? theme.primaryLight : theme.surface }]}
+                        >
+                          <Text style={[styles.sortChipText, { color: active ? theme.primary : theme.textSecondary, fontFamily: active ? font.semibold : font.medium }]}>
+                            {s === "default" ? "Default" : s === "name" ? "Name" : s === "institution" ? "Bank" : "Type"}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Starred section header */}
+              {starredIds.size > 0 && showAllAccounts ? (
+                <View style={[styles.accountSectionHeader, { borderBottomColor: theme.borderLight }]}>
+                  <Ionicons name="star" size={11} color="#F5A623" />
+                  <Text style={[styles.accountSectionLabel, { color: theme.textTertiary }]}>Starred</Text>
+                </View>
+              ) : null}
+
+              {(showAllAccounts ? sortedAccounts : sortedAccounts.slice(0, ACCOUNTS_PREVIEW)).map((a, i, arr) => {
+                const isStarred = starredIds.has(a.id);
+                // Insert "Other" divider between starred and non-starred when expanded
+                const prevStarred = i > 0 && starredIds.has(arr[i - 1].id);
+                const showDivider = showAllAccounts && starredIds.size > 0 && !isStarred && prevStarred;
+                return (
+                  <View key={a.account_id}>
+                    {showDivider ? (
+                      <View style={[styles.accountSectionHeader, { borderBottomColor: theme.borderLight }]}>
+                        <Text style={[styles.accountSectionLabel, { color: theme.textTertiary }]}>Other accounts</Text>
+                      </View>
+                    ) : null}
+                    <TouchableOpacity
+                      style={[styles.accountRow, { borderBottomColor: theme.borderLight }]}
+                      onPress={() => renameAccount(a)}
+                      activeOpacity={0.7}
+                    >
+                      <MerchantLogo
+                        merchantName={a.institution_name ?? a.name}
+                        size={40}
+                        fallbackText={a.institution_name ?? a.name}
+                        style={styles.accountIcon}
+                      />
+                      <View style={styles.accountInfo}>
+                        <Text style={[styles.bankName, { color: theme.text }]} numberOfLines={2}>
+                          {stripEmoji(a.nickname ?? a.name)}
+                        </Text>
+                        <Text style={[styles.accountMask, { color: theme.textTertiary }]}>
+                          {(a.subtype ?? a.type ?? "Account").replace(/_/g, " ")} ••••{a.mask ?? "****"}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => toggleStar(a.id)}
+                        hitSlop={12}
+                        style={styles.starBtn}
+                        accessibilityLabel={isStarred ? "Unstar account" : "Star account"}
+                      >
+                        <Ionicons
+                          name={isStarred ? "star" : "star-outline"}
+                          size={18}
+                          color={isStarred ? "#F5A623" : theme.textTertiary}
+                        />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+
+              {accounts.length > ACCOUNTS_PREVIEW ? (
                 <TouchableOpacity
-                  key={a.account_id}
-                  style={[styles.accountRow, { borderBottomColor: theme.borderLight }]}
-                  onPress={() => renameAccount(a)}
+                  onPress={() => setShowAllAccounts((v) => !v)}
+                  style={[styles.showAllRow, { borderTopColor: theme.borderLight }]}
                   activeOpacity={0.7}
                 >
-                  <MerchantLogo
-                    merchantName={a.institution_name ?? a.name}
-                    size={40}
-                    fallbackText={a.institution_name ?? a.name}
-                    style={styles.accountIcon}
+                  <Text style={[styles.showAllText, { color: theme.primary }]}>
+                    {showAllAccounts ? "Show less" : `Show all · ${accounts.length} accounts`}
+                  </Text>
+                  <Ionicons
+                    name={showAllAccounts ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    color={theme.primary}
                   />
-                  <View style={styles.accountInfo}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={[styles.bankName, { color: theme.text }]}>
-                        {a.nickname ?? a.name}
-                      </Text>
-                      <Ionicons name="pencil-outline" size={12} color={theme.textTertiary} />
-                    </View>
-                    <Text style={[styles.accountMask, { color: theme.textTertiary }]}>
-                      {(a.subtype ?? a.type ?? "Account").replace(/_/g, " ")} ••••{a.mask ?? "****"}
-                    </Text>
-                  </View>
                 </TouchableOpacity>
-              ))}
+              ) : null}
             </View>
           )}
           {linked ? (
@@ -716,6 +833,47 @@ const styles = StyleSheet.create({
   linkInline: { fontSize: 15, fontFamily: font.medium },
   linkCenter: { fontSize: 15, fontFamily: font.medium, textAlign: "center" },
   accountList: { marginTop: 4 },
+  sortBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 4,
+  },
+  sortLabel: { fontSize: 12, fontFamily: font.medium },
+  sortChips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
+  sortChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  sortChipText: { fontSize: 12 },
+  accountSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingTop: 10,
+    paddingBottom: 6,
+    paddingHorizontal: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 2,
+  },
+  accountSectionLabel: { fontSize: 11, fontFamily: font.semibold, textTransform: "uppercase", letterSpacing: 0.6 },
+  starBtn: { padding: 6, marginLeft: 4 },
+  showAllRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 13,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 2,
+  },
+  showAllText: { fontSize: 14, fontFamily: font.semibold },
   accountRow: {
     flexDirection: "row",
     alignItems: "center",

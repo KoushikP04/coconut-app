@@ -8,13 +8,15 @@ import { useRecentActivity, type RecentActivityItem } from "../../hooks/useGroup
 import { useDemoMode } from "../../lib/demo-mode-context";
 import { useDemoData } from "../../lib/demo-context";
 import { font, radii, prototype, colors } from "../../lib/theme";
+import { useTheme } from "../../lib/theme-context";
 
 function ActivityHeader() {
+  const { theme } = useTheme();
   return (
     <View style={styles.headerRow}>
       <View>
-        <Text style={styles.title}>Activity</Text>
-        <Text style={styles.titleSub}>Splits & settlements</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Activity</Text>
+        <Text style={[styles.titleSub, { color: theme.textTertiary }]}>Splits & settlements</Text>
       </View>
       <TouchableOpacity
         onPress={() => router.push("/(tabs)/settings")}
@@ -23,7 +25,7 @@ function ActivityHeader() {
         accessibilityRole="button"
         accessibilityLabel="Settings"
       >
-        <Ionicons name="settings-outline" size={22} color="#4B5563" />
+        <Ionicons name="settings-outline" size={22} color={theme.textSecondary} />
       </TouchableOpacity>
     </View>
   );
@@ -37,6 +39,7 @@ function activitySearchHaystack(it: RecentActivityItem): string {
 }
 
 export default function ActivityTabScreen() {
+  const { theme } = useTheme();
   const { isDemoOn } = useDemoMode();
   const demo = useDemoData();
   const { activity: realActivity, loading, refetch } = useRecentActivity(!isDemoOn);
@@ -69,7 +72,7 @@ export default function ActivityTabScreen() {
 
   if (!isDemoOn && loading && activity.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
         <View style={styles.pad}>
           <ActivityHeader />
         </View>
@@ -81,7 +84,7 @@ export default function ActivityTabScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.page}
@@ -96,14 +99,14 @@ export default function ActivityTabScreen() {
           <ActivityHeader />
         </View>
 
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color="#8A9098" />
+        <View style={[styles.searchBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Ionicons name="search" size={18} color={theme.textTertiary} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.text }]}
             value={search}
             onChangeText={setSearch}
             placeholder="Search people, merchants, amounts…"
-            placeholderTextColor="#8A9098"
+            placeholderTextColor={theme.textTertiary}
             returnKeyType="search"
             clearButtonMode="while-editing"
             autoCapitalize="none"
@@ -125,19 +128,19 @@ export default function ActivityTabScreen() {
           ) : null}
         </View>
         {!activity.length ? (
-          <View style={[styles.groupedCard, styles.emptyInner]}>
-            <Ionicons name="time-outline" size={32} color="#8A9098" />
-            <Text style={styles.emptyTitle}>No activity</Text>
-            <Text style={styles.emptySub}>Expenses and settlements show up here as they happen.</Text>
+          <View style={[styles.groupedCard, styles.emptyInner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Ionicons name="time-outline" size={32} color={theme.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>No activity</Text>
+            <Text style={[styles.emptySub, { color: theme.textTertiary }]}>Expenses and settlements show up here as they happen.</Text>
           </View>
         ) : !filteredActivity.length ? (
-          <View style={[styles.groupedCard, styles.emptyInner]}>
-            <Ionicons name="search-outline" size={32} color="#8A9098" />
-            <Text style={styles.emptyTitle}>No matches</Text>
-            <Text style={styles.emptySub}>Try another name, merchant, or amount.</Text>
+          <View style={[styles.groupedCard, styles.emptyInner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Ionicons name="search-outline" size={32} color={theme.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>No matches</Text>
+            <Text style={[styles.emptySub, { color: theme.textTertiary }]}>Try another name, merchant, or amount.</Text>
           </View>
         ) : (
-          <View style={styles.groupedCard}>
+          <View style={[styles.groupedCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             {filteredActivity.map((it, i) => (
               <ActivityRow key={it.id} it={it} showSep={i < filteredActivity.length - 1} />
             ))}
@@ -149,6 +152,7 @@ export default function ActivityTabScreen() {
 }
 
 function ActivityRow({ it, showSep }: { it: RecentActivityItem; showSep: boolean }) {
+  const { theme } = useTheme();
   return (
     <View>
       <View style={styles.groupedRow}>
@@ -161,7 +165,7 @@ function ActivityRow({ it, showSep }: { it: RecentActivityItem; showSep: boolean
                   ? prototype.greenBg
                   : it.direction === "owe"
                     ? prototype.redBg
-                    : "#F7F3F0",
+                    : theme.surfaceSecondary,
             },
           ]}
         >
@@ -178,11 +182,11 @@ function ActivityRow({ it, showSep }: { it: RecentActivityItem; showSep: boolean
           />
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.actWho} numberOfLines={2}>
+          <Text style={[styles.actWho, { color: theme.text }]} numberOfLines={2}>
             <Text style={{ fontFamily: font.bold }}>{it.who}</Text> {it.action}
             {it.what ? ` "${it.what}"` : ""}
           </Text>
-          {it.in ? <Text style={styles.actIn}>{it.in}</Text> : null}
+          {it.in ? <Text style={[styles.actIn, { color: theme.textTertiary }]}>{it.in}</Text> : null}
         </View>
         <View style={{ alignItems: "flex-end" }}>
           {it.direction !== "settled" && (
@@ -193,7 +197,7 @@ function ActivityRow({ it, showSep }: { it: RecentActivityItem; showSep: boolean
           <Text style={styles.actTime}>{it.time}</Text>
         </View>
       </View>
-      {showSep ? <View style={styles.rowSep} /> : null}
+      {showSep ? <View style={[styles.rowSep, { backgroundColor: theme.borderLight }]} /> : null}
     </View>
   );
 }

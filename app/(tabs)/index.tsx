@@ -30,6 +30,7 @@ import { useGroupsSummary } from "../../hooks/useGroups";
 import { useTransactions, type Transaction } from "../../hooks/useTransactions";
 import { useDemoMode } from "../../lib/demo-mode-context";
 import { useDemoData } from "../../lib/demo-context";
+import { useTheme } from "../../lib/theme-context";
 import { BalanceHero } from "../../components/split/BalanceHero";
 import { colors, font, radii, shadow, darkUI, prototype } from "../../lib/theme";
 import { MerchantLogo } from "../../components/merchant/MerchantLogo";
@@ -67,7 +68,8 @@ function FriendAvatar({ name, size = 42 }: { name: string; size?: number }) {
 }
 
 function SLabel({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.sLabel}>{children}</Text>;
+  const { theme } = useTheme();
+  return <Text style={[styles.sLabel, { color: theme.textTertiary }]}>{children}</Text>;
 }
 
 function timeAgo(iso: string) {
@@ -130,6 +132,7 @@ function filterOffsettingBankPairs(transactions: Transaction[]): Transaction[] {
 }
 
 export default function BalancesPrototypeScreen() {
+  const { theme } = useTheme();
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
   const { isDemoOn } = useDemoMode();
@@ -285,17 +288,17 @@ export default function BalancesPrototypeScreen() {
   const greetingTitle = formatHomeGreetingLine(greetingName);
   if (initialHomeLoading) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top"]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={["top"]}>
         <View style={styles.homeLoadingWrap}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.homeLoadingText}>Loading your home…</Text>
+          <Text style={[styles.homeLoadingText, { color: theme.textTertiary }]}>Loading your home…</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -308,10 +311,10 @@ export default function BalancesPrototypeScreen() {
       >
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title} numberOfLines={2}>
+            <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
               {greetingTitle}
             </Text>
-            <Text style={styles.titleSub}>Here&apos;s where you stand with friends and groups.</Text>
+            <Text style={[styles.titleSub, { color: theme.textTertiary }]}>Here&apos;s where you stand with friends and groups.</Text>
           </View>
         </View>
 
@@ -322,7 +325,7 @@ export default function BalancesPrototypeScreen() {
             <View style={styles.sectionRow}>
               <SLabel>From your bank</SLabel>
               <TouchableOpacity onPress={() => setShowAllBank(true)} hitSlop={8}>
-                <Text style={styles.seeAll}>See all</Text>
+                <Text style={[styles.seeAll, { color: theme.text }]}>See all</Text>
               </TouchableOpacity>
             </View>
             <FlatList
@@ -333,11 +336,11 @@ export default function BalancesPrototypeScreen() {
               contentContainerStyle={{ gap: 10, paddingRight: 8 }}
               renderItem={({ item }) => (
                 <Pressable
-                  style={[styles.bankCard, item.cardDetailIsReceipt && styles.bankCardEmail]}
+                  style={[styles.bankCard, item.cardDetailIsReceipt && styles.bankCardEmail, { backgroundColor: theme.surface, borderColor: item.cardDetailIsReceipt ? "#D9D7F0" : theme.border }]}
                   onPress={() => setSelectedStrip(item)}
                 >
                   <View style={styles.bankTop}>
-                    <View style={styles.bankEmojiWrap}>
+                    <View style={[styles.bankEmojiWrap, { backgroundColor: theme.surfaceSecondary }]}>
                       <MerchantLogo
                         merchantName={item.merchant}
                         size={22}
@@ -359,7 +362,7 @@ export default function BalancesPrototypeScreen() {
                       <Ionicons name="close" size={13} color={darkUI.labelMuted} />
                     </TouchableOpacity>
                   </View>
-                  <Text style={styles.bankMerchant} numberOfLines={1}>
+                  <Text style={[styles.bankMerchant, { color: theme.text }]} numberOfLines={1}>
                     {item.merchant}
                   </Text>
                   <Text
@@ -368,9 +371,9 @@ export default function BalancesPrototypeScreen() {
                   >
                     {item.cardDetailLine}
                   </Text>
-                  <Text style={styles.bankAmt}>${item.amount.toFixed(2)}</Text>
-                  <View style={styles.bankCta}>
-                    <Text style={styles.bankCtaText}>
+                  <Text style={[styles.bankAmt, { color: theme.text }]}>${item.amount.toFixed(2)}</Text>
+                  <View style={[styles.bankCta, { backgroundColor: theme.surfaceSecondary, borderColor: theme.border }]}>
+                    <Text style={[styles.bankCtaText, { color: theme.text }]}>
                       {item.cardDetailIsReceipt ? "View receipt" : "Split this"}
                     </Text>
                   </View>
@@ -384,7 +387,7 @@ export default function BalancesPrototypeScreen() {
               <SLabel>From your bank</SLabel>
               {linked ? (
                 <TouchableOpacity onPress={() => setShowAllBank(true)} hitSlop={8}>
-                  <Text style={styles.seeAll}>See all</Text>
+                  <Text style={[styles.seeAll, { color: theme.text }]}>See all</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -394,19 +397,19 @@ export default function BalancesPrototypeScreen() {
               </Text>
             ) : null}
             {txStatus === "api_unreachable" ? (
-              <View style={styles.emptyBank}>
-                <Text style={styles.emptyBankText}>
+              <View style={[styles.emptyBank, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.emptyBankText, { color: theme.textTertiary }]}>
                   Can&apos;t reach the Coconut API (got 404). Set EXPO_PUBLIC_API_URL in .env to your live Next.js URL
                   (same host as the web app), restart Expo, and try again.
                 </Text>
               </View>
             ) : txStatus === "unauthorized" ? (
-              <View style={styles.emptyBank}>
-                <Text style={styles.emptyBankText}>Sign in again to load bank charges.</Text>
+              <View style={[styles.emptyBank, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.emptyBankText, { color: theme.textTertiary }]}>Sign in again to load bank charges.</Text>
               </View>
             ) : !linked ? (
-              <View style={styles.emptyBank}>
-                <Text style={styles.emptyBankText}>
+              <View style={[styles.emptyBank, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.emptyBankText, { color: theme.textTertiary }]}>
                   Connect your bank on the web to see charges. When a purchase matches an email receipt,
                   it&apos;ll show here to split.
                 </Text>
@@ -420,11 +423,11 @@ export default function BalancesPrototypeScreen() {
                 contentContainerStyle={{ gap: 10, paddingRight: 8 }}
                 renderItem={({ item }) => (
                   <Pressable
-                    style={[styles.bankCard, item.cardDetailIsReceipt && styles.bankCardEmail]}
+                    style={[styles.bankCard, item.cardDetailIsReceipt && styles.bankCardEmail, { backgroundColor: theme.surface, borderColor: item.cardDetailIsReceipt ? "#D9D7F0" : theme.border }]}
                     onPress={() => setSelectedStrip(item)}
                   >
                     <View style={styles.bankTop}>
-                      <View style={styles.bankEmojiWrap}>
+                      <View style={[styles.bankEmojiWrap, { backgroundColor: theme.surfaceSecondary }]}>
                         <MerchantLogo
                           merchantName={item.merchant}
                           size={22}
@@ -446,7 +449,7 @@ export default function BalancesPrototypeScreen() {
                         <Ionicons name="close" size={13} color={darkUI.labelMuted} />
                       </TouchableOpacity>
                     </View>
-                    <Text style={styles.bankMerchant} numberOfLines={1}>
+                    <Text style={[styles.bankMerchant, { color: theme.text }]} numberOfLines={1}>
                       {item.merchant}
                     </Text>
                     <Text
@@ -492,7 +495,7 @@ export default function BalancesPrototypeScreen() {
                       }
                     >
                       <View style={styles.bankTop}>
-                        <View style={styles.bankEmojiWrap}>
+                        <View style={[styles.bankEmojiWrap, { backgroundColor: theme.surfaceSecondary }]}>
                           <MerchantLogo
                             merchantName={tx.merchant || tx.rawDescription || "Purchase"}
                             size={22}
@@ -502,7 +505,7 @@ export default function BalancesPrototypeScreen() {
                           />
                         </View>
                       </View>
-                      <Text style={styles.bankMerchant} numberOfLines={1}>
+                      <Text style={[styles.bankMerchant, { color: theme.text }]} numberOfLines={1}>
                         {tx.merchant || tx.rawDescription || "Purchase"}
                       </Text>
                       <Text style={styles.bankHint} numberOfLines={1}>
@@ -516,8 +519,8 @@ export default function BalancesPrototypeScreen() {
                   )}
                 />
               ) : (
-                <View style={styles.emptyBank}>
-                  <Text style={styles.emptyBankText}>
+                <View style={[styles.emptyBank, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <Text style={[styles.emptyBankText, { color: theme.textTertiary }]}>
                     No bank charges yet. Pull to refresh after linking your bank.
                   </Text>
                 </View>
@@ -530,17 +533,17 @@ export default function BalancesPrototypeScreen() {
           <View style={styles.sectionRow}>
             <SLabel>Friends & groups</SLabel>
             <TouchableOpacity onPress={() => router.push("/(tabs)/shared")} hitSlop={8}>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={[styles.seeAll, { color: theme.text }]}>See all</Text>
             </TouchableOpacity>
           </View>
           {!hasFriendsOrGroups ? (
-            <View style={styles.emptyFriend}>
-              <Ionicons name="people-outline" size={28} color={darkUI.labelMuted} />
-              <Text style={styles.emptyFriendTitle}>No friends or groups yet</Text>
-              <Text style={styles.emptyFriendSub}>Open See all to add people and groups.</Text>
+            <View style={[styles.emptyFriend, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Ionicons name="people-outline" size={28} color={theme.textTertiary} />
+              <Text style={[styles.emptyFriendTitle, { color: theme.text }]}>No friends or groups yet</Text>
+              <Text style={[styles.emptyFriendSub, { color: theme.textTertiary }]}>Open See all to add people and groups.</Text>
             </View>
           ) : (
-            <View style={styles.groupedCard}>
+            <View style={[styles.groupedCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               {friends.map((f, i) => {
                 const nExp = friendExpenseCount(f.key);
                 const lines = friendBalanceLines(f);
@@ -572,8 +575,8 @@ export default function BalancesPrototypeScreen() {
                     >
                       <FriendAvatar name={f.displayName} />
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.friendName}>{f.displayName}</Text>
-                        <Text style={styles.friendMeta}>{meta}</Text>
+                        <Text style={[styles.friendName, { color: theme.text }]}>{f.displayName}</Text>
+                        <Text style={[styles.friendMeta, { color: theme.textTertiary }]}>{meta}</Text>
                       </View>
                       <View style={{ alignItems: "flex-end" }}>
                         {settled ? (
@@ -600,11 +603,11 @@ export default function BalancesPrototypeScreen() {
                       </View>
                       <Ionicons name="chevron-forward" size={14} color={darkUI.labelMuted} style={{ marginLeft: 6, opacity: 0.5 }} />
                     </TouchableOpacity>
-                    {i < friends.length - 1 ? <View style={styles.rowSep} /> : null}
+                    {i < friends.length - 1 ? <View style={[styles.rowSep, { backgroundColor: theme.borderLight }]} /> : null}
                   </View>
                 );
               })}
-              {friends.length > 0 && groups.length > 0 ? <View style={styles.sectionDivider} /> : null}
+              {friends.length > 0 && groups.length > 0 ? <View style={[styles.sectionDivider, { backgroundColor: theme.borderLight }]} /> : null}
               {groups.length > 0 ? (
                 <>
                   <View
@@ -778,8 +781,8 @@ export default function BalancesPrototypeScreen() {
             </View>
             <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
               {filteredAllBankRows.length === 0 ? (
-                <View style={styles.emptyBank}>
-                  <Text style={styles.emptyBankText}>No linked card charges found.</Text>
+                <View style={[styles.emptyBank, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <Text style={[styles.emptyBankText, { color: theme.textTertiary }]}>No linked card charges found.</Text>
                 </View>
               ) : (
                 <View style={styles.groupedCard}>
@@ -800,7 +803,7 @@ export default function BalancesPrototypeScreen() {
                           });
                         }}
                       >
-                        <View style={styles.bankEmojiWrap}>
+                        <View style={[styles.bankEmojiWrap, { backgroundColor: theme.surfaceSecondary }]}>
                           <MerchantLogo
                             merchantName={tx.merchant || tx.rawDescription || "Purchase"}
                             size={22}
