@@ -171,7 +171,10 @@ export function useGroupDetail(id: string | null) {
         setLoading(false);
         return;
       }
-      if (!silent) setLoading(true);
+      if (!silent) {
+        setDetail(null);
+        setLoading(true);
+      }
       try {
         const res = await apiFetch(`/api/groups/${id}`);
         if (res.ok) {
@@ -206,7 +209,10 @@ export function usePersonDetail(key: string | null) {
         setLoading(false);
         return;
       }
-      if (!silent) setLoading(true);
+      if (!silent) {
+        setDetail(null);
+        setLoading(true);
+      }
       try {
         const res = await apiFetch(
           `/api/groups/person?key=${encodeURIComponent(key)}`
@@ -264,7 +270,10 @@ export function useTransactionDetail(id: string | null) {
         setLoading(false);
         return;
       }
-      if (!silent) setLoading(true);
+      if (!silent) {
+        setDetail(null);
+        setLoading(true);
+      }
       try {
         const res = await apiFetch(`/api/groups/transaction?id=${encodeURIComponent(id)}`);
         if (res.ok) setDetail(await res.json());
