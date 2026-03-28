@@ -10,6 +10,8 @@ import type { ReceiptItem } from "./receipt-split";
 export type ReceiptDetailPayload = {
   id?: string;
   merchant_name?: string;
+  merchant_type?: string | null;
+  merchant_details?: Record<string, unknown> | null;
   subtotal?: number;
   tax?: number;
   tip?: number;
@@ -50,6 +52,8 @@ export async function fetchReceiptDetailForTransaction(
 ): Promise<{
   items: ReceiptItem[];
   merchantName: string;
+  merchantType: string | null;
+  merchantDetails: Record<string, unknown> | null;
   subtotal: number;
   tax: number;
   tip: number;
@@ -81,6 +85,8 @@ export async function fetchReceiptDetailForTransaction(
     return {
       items,
       merchantName: data.merchant_name ?? "",
+      merchantType: data.merchant_type ?? null,
+      merchantDetails: data.merchant_details ?? null,
       subtotal,
       tax,
       tip,

@@ -4,6 +4,8 @@ import type { ReceiptItem } from "./receipt-split";
 export function getDemoItemizedReceipt(): {
   items: ReceiptItem[];
   merchantName: string;
+  merchantType: string | null;
+  merchantDetails: Record<string, unknown> | null;
   subtotal: number;
   tax: number;
   tip: number;
@@ -22,6 +24,15 @@ export function getDemoItemizedReceipt(): {
   return {
     items,
     merchantName: "Uber",
+    merchantType: "rideshare",
+    merchantDetails: {
+      provider: "uber",
+      pickup: "Nobu Restaurant, Hayes St",
+      dropoff: "Mission Dist, 18th & Valencia",
+      duration: "22 min",
+      distance: "4.2 mi",
+      driver_name: "Carlos M.",
+    },
     subtotal,
     tax,
     tip,

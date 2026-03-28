@@ -25,6 +25,7 @@ import { useApiFetch } from "../../lib/api";
 import { fetchReceiptDetailForTransaction } from "../../lib/fetch-receipt-detail";
 import { getDemoItemizedReceipt } from "../../lib/demo-receipt-itemized";
 import { ItemizedReceiptPreview } from "../../components/ItemizedReceiptPreview";
+import { MerchantEnrichmentCard, MerchantItemsList } from "../../components/MerchantEnrichmentCard";
 import type { ReceiptItem } from "../../lib/receipt-split";
 import { useGroupsSummary } from "../../hooks/useGroups";
 import { useTransactions, type Transaction } from "../../hooks/useTransactions";
@@ -150,6 +151,8 @@ export default function BalancesPrototypeScreen() {
   const [itemizedReceipt, setItemizedReceipt] = useState<{
     items: ReceiptItem[];
     merchantName: string;
+    merchantType: string | null;
+    merchantDetails: Record<string, unknown> | null;
     subtotal: number;
     tax: number;
     tip: number;
@@ -690,16 +693,28 @@ export default function BalancesPrototypeScreen() {
                   </View>
                   <Text style={styles.sheetAmt}>${selectedStrip.amount.toFixed(2)}</Text>
                 </View>
-                {selectedStrip.showReceiptBox && selectedStrip.receiptBoxText ? (
+                {selectedStrip.showReceiptBox ? (
                   <View style={styles.emailBox}>
                     <View style={styles.emailRow}>
                       <Ionicons name="mail-outline" size={12} color={prototype.blue} />
-                      <Text style={styles.emailLbl}>Matched from email receipt</Text>
+                      <Text style={styles.emailLbl}>MATCHED FROM EMAIL RECEIPT</Text>
                     </View>
-                    <Text style={styles.emailSnippet}>{selectedStrip.receiptBoxText}</Text>
                   </View>
                 ) : null}
-                {selectedStrip.cardDetailIsReceipt && selectedStrip.receiptId ? (
+                {itemizedReceipt?.merchantType && itemizedReceipt.merchantDetails ? (
+                  <>
+                    <MerchantEnrichmentCard
+                      merchantType={itemizedReceipt.merchantType}
+                      merchantDetails={itemizedReceipt.merchantDetails}
+                    />
+                    {itemizedReceipt.merchantType === "ecommerce" && itemizedReceipt.items.length > 0 ? (
+                      <MerchantItemsList
+                        items={itemizedReceipt.items}
+                        estimatedDelivery={(itemizedReceipt.merchantDetails as Record<string, unknown>).estimated_delivery as string | undefined}
+                      />
+                    ) : null}
+                  </>
+                ) : selectedStrip.cardDetailIsReceipt && selectedStrip.receiptId ? (
                   <>
                     <Text style={styles.itemizedSectionTitle}>Itemized receipt</Text>
                     <ItemizedReceiptPreview
