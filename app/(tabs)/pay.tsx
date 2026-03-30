@@ -5,10 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  PermissionsAndroid,
   Alert,
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useStripeTerminal } from "@stripe/stripe-terminal-react-native";
 import type { Reader } from "@stripe/stripe-terminal-react-native";
 import { ErrorCode } from "@stripe/stripe-terminal-react-native";
@@ -59,7 +61,17 @@ export default function PayScreen() {
 
   useEffect(() => {
     if (!isInitialized) return;
-    discoverReaders({ discoveryMethod: "tapToPay" });
+    if (Platform.OS === "android") {
+      PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      ).then((status) => {
+        if (status === PermissionsAndroid.RESULTS.GRANTED) {
+          discoverReaders({ discoveryMethod: "tapToPay" });
+        }
+      });
+    } else {
+      discoverReaders({ discoveryMethod: "tapToPay" });
+    }
   }, [isInitialized, discoverReaders]);
 
   const connectTapToPay = useCallback(async () => {
@@ -194,7 +206,7 @@ export default function PayScreen() {
   const isConnected = !!connectedReader;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <Text style={styles.title}>Tap to Pay</Text>
       <Text style={styles.subtitle}>
         Accept contactless payments with your phone. No reader required.
@@ -281,7 +293,7 @@ export default function PayScreen() {
         Requires a development build (expo run:ios / expo run:android). iOS: iPhone XS or later.
         Android: NFC device, API 26+.
       </Text>
-    </View>
+    </SafeAreaView>
   );
 }
 
