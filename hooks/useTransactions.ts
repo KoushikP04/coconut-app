@@ -29,6 +29,7 @@ export function useTransactions() {
 
   const fetchData = useCallback((silent = false): Promise<void> => {
     let cancelled = false;
+    transientRetryCount.current = 0;
     const isFirstLoad = !hasShownInitialLoad.current;
     console.log(`[useTransactions] fetchData started silent=${silent} isFirstLoad=${isFirstLoad}`);
     setStatus("ok");
@@ -37,7 +38,6 @@ export function useTransactions() {
     const timeout = setTimeout(() => controller.abort(), 10000);
     return apiFetch("/api/plaid/status", { signal: controller.signal })
       .then((r) => {
-        clearTimeout(timeout);
         if (cancelled) return null;
         console.log(`[useTransactions] plaid/status → ${r.status}`);
         if (r.status === 425) {
@@ -70,13 +70,14 @@ export function useTransactions() {
         if (cancelled || !data) return null;
         if (!data.linked) {
           console.log("[useTransactions] not linked, loading=false");
+          setLinked(false);
           setStatus("not_linked");
           setLoading(false);
           return null;
         }
         console.log("[useTransactions] linked! fetching transactions");
         setLinked(true);
-        return apiFetch("/api/plaid/transactions");
+        return apiFetch("/api/plaid/transactions", { signal: controller.signal });
       })
       .then((r) => {
         if (cancelled || !r || !r.ok) return null;
@@ -94,7 +95,6 @@ export function useTransactions() {
         }
       })
       .catch(() => {
-        clearTimeout(timeout);
         if (!cancelled) setLoading(false);
       });
   }, [apiFetch]);
