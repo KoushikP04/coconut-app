@@ -22,7 +22,7 @@ type SelectedParticipant =
 export default function AddExpenseScreen() {
   const router = useRouter();
   const apiFetch = useApiFetch();
-  const { summary, loading } = useGroupsSummary();
+  const { summary, loading, refetch: refetchGroups } = useGroupsSummary();
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -96,7 +96,12 @@ export default function AddExpenseScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        router.back();
+        refetchGroups();
+        if (router.canGoBack()) {
+          router.back();
+        } else {
+          router.replace("/(tabs)");
+        }
       } else {
         setError(data.error ?? "Failed to add expense");
       }
@@ -126,7 +131,13 @@ export default function AddExpenseScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)");
+            }
+          }} style={styles.closeBtn}>
             <Ionicons name="close" size={24} color="#374151" />
           </TouchableOpacity>
           <Text style={styles.title}>Add an expense</Text>
