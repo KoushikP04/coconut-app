@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useApiFetch } from "../lib/api";
 
 const POLL_INTERVAL_MS = 2000;
@@ -74,7 +75,11 @@ export default function ConnectedScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <ActivityIndicator size="large" color="#3D8E62" />
+        {status === "polling" ? (
+          <ActivityIndicator size="large" color="#3D8E62" />
+        ) : (
+          <Ionicons name="time-outline" size={44} color="#6B7280" />
+        )}
         <Text style={styles.text}>Bank connected!</Text>
         <Text style={styles.subtext}>{subtext}</Text>
         {showSkip && status === "polling" && (
