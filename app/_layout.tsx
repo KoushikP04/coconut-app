@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/expo";
@@ -15,24 +15,25 @@ if (!publishableKey) {
 function TerminalTokenProvider({ children }: { children: React.ReactElement | React.ReactElement[] }) {
   const { getToken } = useAuth();
 
-  const fetchConnectionToken = async () => {
+  const fetchConnectionToken = useCallback(async () => {
     let token: string | null = null;
     for (let i = 0; i < 4; i++) {
       token = await getToken({ skipCache: i > 0 });
       if (token) break;
       if (i < 3) await new Promise((r) => setTimeout(r, 300 * (i + 1)));
     }
+    if (!token) throw new Error("Auth token unavailable; cannot fetch Stripe Terminal connection token");
     const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/stripe/terminal/connection-token`, {
       method: "POST",
       headers: {
-        Authorization: token ? `Bearer ${token}` : "",
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to get connection token");
     return data.secret;
-  };
+  }, [getToken]);
 
   return (
     <StripeTerminalProvider
@@ -75,14 +76,14 @@ function AuthSwitch() {
   }, [isLoaded, isSignedIn, signOut]);
 
   // SKIP_AUTH: always show tabs so you can see the UI without signing in
+  // TerminalTokenProvider is intentionally omitted here — Clerk has no real session
+  // so getToken always returns null, which would cause terminal init to fail.
   if (SKIP_AUTH) {
     return (
-      <TerminalTokenProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="connected" options={{ headerShown: false }} />
-        </Stack>
-      </TerminalTokenProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="connected" options={{ headerShown: false }} />
+      </Stack>
     );
   }
 
@@ -91,6 +92,7 @@ function AuthSwitch() {
     return (
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="connected" options={{ headerShown: false }} />
       </Stack>
     );
   }
@@ -108,7 +110,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider
       publishableKey={publishableKey ?? ""}
-      tokenCache={SKIP_AUTH || FORCE_SIGN_OUT_ON_LAUNCH ? undefined : tokenCache}
+      tokenCache={SKIP_AUTH ? undefined : tokenCache}
     >
       <StatusBar style="auto" />
       <AuthSwitch />
