@@ -81,7 +81,9 @@ export default function ConnectedScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <ActivityIndicator size="large" color="#3D8E62" />
+        {status === "polling" && (
+          <ActivityIndicator size="large" color="#3D8E62" />
+        )}
         <Text style={styles.text}>Bank connected!</Text>
         <Text style={styles.subtext}>{subtext}</Text>
         {showSkip && status === "polling" && (
