@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import { router } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useApiFetch } from "../../lib/api";
 import {
   useGroupsSummary,
@@ -69,6 +70,13 @@ export default function SharedScreen() {
   const [requestingPayment, setRequestingPayment] = useState(false);
   const [recordingSettlement, setRecordingSettlement] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) {
+      refetch();
+    }
+  }, [isFocused]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
