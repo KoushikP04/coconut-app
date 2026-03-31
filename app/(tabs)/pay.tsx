@@ -30,6 +30,7 @@ export default function PayScreen() {
   const [collecting, setCollecting] = useState(false);
   const [lastPayment, setLastPayment] = useState<string | null>(null);
   const [discoveredReaders, setDiscoveredReaders] = useState<Reader.Type[]>([]);
+  const [discoverError, setDiscoverError] = useState<string | null>(null);
 
   const {
     initialize,
@@ -59,7 +60,11 @@ export default function PayScreen() {
 
   useEffect(() => {
     if (!isInitialized) return;
-    discoverReaders({ discoveryMethod: "tapToPay" });
+    discoverReaders({ discoveryMethod: "tapToPay" }).then((result) => {
+      if (result?.error) {
+        setDiscoverError(result.error.message ?? "Could not start Tap to Pay discovery");
+      }
+    });
   }, [isInitialized, discoverReaders]);
 
   const connectTapToPay = useCallback(async () => {
@@ -221,23 +226,28 @@ export default function PayScreen() {
             <Text style={styles.buttonText}>Disconnect</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            style={[styles.button, connecting && styles.buttonDisabled]}
-            onPress={connectTapToPay}
-            disabled={connecting || !isInitialized || discoveredReaders.length === 0}
-          >
-            {connecting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {!isInitialized
-                  ? "Initializing…"
-                  : discoveredReaders.length === 0
-                  ? "Tap to Pay not available"
-                  : "Connect Tap to Pay"}
-              </Text>
+          <>
+            <TouchableOpacity
+              style={[styles.button, connecting && styles.buttonDisabled]}
+              onPress={connectTapToPay}
+              disabled={connecting || !isInitialized || discoveredReaders.length === 0}
+            >
+              {connecting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  {!isInitialized
+                    ? "Initializing…"
+                    : discoveredReaders.length === 0
+                    ? "Tap to Pay not available"
+                    : "Connect Tap to Pay"}
+                </Text>
+              )}
+            </TouchableOpacity>
+            {discoverError && (
+              <Text style={{ color: "red", fontSize: 12, marginTop: 4 }}>{discoverError}</Text>
             )}
-          </TouchableOpacity>
+          </>
         )}
       </View>
 
