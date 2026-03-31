@@ -86,9 +86,17 @@ export default function SharedScreen() {
 
   useEffect(() => {
     apiFetch("/api/plaid/status")
-      .then((r) => r.json())
-      .then((d) => setPlaidLinked(d.linked === true))
-      .catch(() => setPlaidLinked(false));
+      .then(async (r) => {
+        if (!r.ok) {
+          // Server error — don't falsely set plaidLinked to false
+          return;
+        }
+        const d = await r.json();
+        setPlaidLinked(d.linked === true);
+      })
+      .catch(() => {
+        // Network error — leave plaidLinked as null (unknown state)
+      });
   }, [apiFetch]);
 
   const showOverview = !selectedGroupId && !selectedPersonKey;
