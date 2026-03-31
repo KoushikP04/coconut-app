@@ -82,12 +82,10 @@ function AuthSwitch() {
   // SKIP_AUTH: always show tabs so you can see the UI without signing in
   if (SKIP_AUTH) {
     return (
-      <TerminalTokenProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="connected" options={{ headerShown: false }} />
-        </Stack>
-      </TerminalTokenProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="connected" options={{ headerShown: false }} />
+      </Stack>
     );
   }
 
