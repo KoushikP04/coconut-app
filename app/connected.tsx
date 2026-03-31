@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, Redirect } from "expo-router";
 import { useApiFetch } from "../lib/api";
+import { useAuth } from "@clerk/expo";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_WAIT_MS = 45000; // Give auth/token + first sync enough time
@@ -13,6 +14,12 @@ const SHOW_SKIP_AFTER_MS = 8000; // Show manual continue after 8s
  * Polls /api/plaid/status until linked, then navigates to Home.
  */
 export default function ConnectedScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
+
+  if (isLoaded && !isSignedIn) {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
+
   const apiFetch = useApiFetch();
   const [status, setStatus] = useState<"polling" | "linked" | "timeout">("polling");
   const [showSkip, setShowSkip] = useState(false);
@@ -74,7 +81,9 @@ export default function ConnectedScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <ActivityIndicator size="large" color="#3D8E62" />
+        {status === "polling" && (
+          <ActivityIndicator size="large" color="#3D8E62" />
+        )}
         <Text style={styles.text}>Bank connected!</Text>
         <Text style={styles.subtext}>{subtext}</Text>
         {showSkip && status === "polling" && (

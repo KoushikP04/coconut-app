@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import { router } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useApiFetch } from "../../lib/api";
 import {
   useGroupsSummary,
@@ -69,6 +70,13 @@ export default function SharedScreen() {
   const [requestingPayment, setRequestingPayment] = useState(false);
   const [recordingSettlement, setRecordingSettlement] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (isFocused) {
+      refetch();
+    }
+  }, [isFocused]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -86,9 +94,17 @@ export default function SharedScreen() {
 
   useEffect(() => {
     apiFetch("/api/plaid/status")
-      .then((r) => r.json())
-      .then((d) => setPlaidLinked(d.linked === true))
-      .catch(() => setPlaidLinked(false));
+      .then(async (r) => {
+        if (!r.ok) {
+          // Server error — don't falsely set plaidLinked to false
+          return;
+        }
+        const d = await r.json();
+        setPlaidLinked(d.linked === true);
+      })
+      .catch(() => {
+        // Network error — leave plaidLinked as null (unknown state)
+      });
   }, [apiFetch]);
 
   const showOverview = !selectedGroupId && !selectedPersonKey;
@@ -249,12 +265,8 @@ export default function SharedScreen() {
 
   if (selectedPersonKey && personDetail) {
     return (
-      <ScrollView
-        style={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3D8E62" />
-        }
-      >
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <ScrollView style={{ flex: 1 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3D8E62" />}>
         <TouchableOpacity onPress={goBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={20} color="#6B7280" />
           <Text style={styles.backText}>Back</Text>
@@ -330,7 +342,8 @@ export default function SharedScreen() {
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 

@@ -9,9 +9,19 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useSignUp } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out`)), ms)
+    ),
+  ]);
+}
 
 function getClerkErrorMessage(e: unknown, fallback: string): string {
   const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
@@ -35,7 +45,11 @@ export default function SignUpScreen() {
     setError("");
     setGoogleLoading(true);
     try {
-      const { createdSessionId, setActive } = await startGoogleAuthenticationFlow();
+      const { createdSessionId, setActive } = await withTimeout(
+        startGoogleAuthenticationFlow(),
+        20000,
+        "Google auth flow"
+      );
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
       }
@@ -91,13 +105,14 @@ export default function SignUpScreen() {
 
   if (!isLoaded) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#3D8E62" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#F7FAF8" }}>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -179,6 +194,7 @@ export default function SignUpScreen() {
         </Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

@@ -70,13 +70,15 @@ export function useTransactions() {
         if (cancelled || !data) return null;
         if (!data.linked) {
           console.log("[useTransactions] not linked, loading=false");
+          setLinked(false);
+          setTransactions([]);
           setStatus("not_linked");
           setLoading(false);
           return null;
         }
         console.log("[useTransactions] linked! fetching transactions");
         setLinked(true);
-        return apiFetch("/api/plaid/transactions");
+        return apiFetch("/api/plaid/transactions", { signal: controller.signal });
       })
       .then((r) => {
         if (cancelled || !r || !r.ok) return null;
@@ -86,16 +88,16 @@ export function useTransactions() {
         if (cancelled) return;
         if (Array.isArray(data)) setTransactions(data as Transaction[]);
       })
+      .catch(() => {
+        clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
+      })
       .finally(() => {
         if (!cancelled) {
           clearTimeout(timeout);
           hasShownInitialLoad.current = true;
           setLoading(false);
         }
-      })
-      .catch(() => {
-        clearTimeout(timeout);
-        if (!cancelled) setLoading(false);
       });
   }, [apiFetch]);
 
