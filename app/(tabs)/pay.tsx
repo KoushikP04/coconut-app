@@ -167,6 +167,7 @@ export default function PayScreen() {
       }
 
       if (!collectResult.paymentIntent) {
+        Alert.alert("Payment incomplete", "No payment method was collected. Please try again.");
         setCollecting(false);
         return;
       }
