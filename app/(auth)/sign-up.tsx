@@ -13,6 +13,15 @@ import { useSignUp } from "@clerk/expo";
 import { useSignInWithGoogle } from "@clerk/expo/google";
 import { router } from "expo-router";
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out`)), ms)
+    ),
+  ]);
+}
+
 function getClerkErrorMessage(e: unknown, fallback: string): string {
   const err = e as { errors?: Array<{ longMessage?: string; message?: string }>; message?: string };
   const first = err?.errors?.[0];
@@ -35,7 +44,11 @@ export default function SignUpScreen() {
     setError("");
     setGoogleLoading(true);
     try {
-      const { createdSessionId, setActive } = await startGoogleAuthenticationFlow();
+      const { createdSessionId, setActive } = await withTimeout(
+        startGoogleAuthenticationFlow(),
+        20000,
+        "Google auth flow"
+      );
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
       }
