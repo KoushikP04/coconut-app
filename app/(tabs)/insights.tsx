@@ -59,6 +59,15 @@ export default function InsightsScreen() {
   const openSettings = () =>
     Linking.openURL(`${API_URL.replace(/\/$/, "")}/app/settings`);
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#3D8E62" />
+        <Text style={styles.loadingText}>Loading insights...</Text>
+      </View>
+    );
+  }
+
   if (!linked) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -73,15 +82,6 @@ export default function InsightsScreen() {
         >
           <Text style={styles.connectButtonText}>Connect in web app</Text>
         </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#3D8E62" />
-        <Text style={styles.loadingText}>Loading insights...</Text>
       </View>
     );
   }
